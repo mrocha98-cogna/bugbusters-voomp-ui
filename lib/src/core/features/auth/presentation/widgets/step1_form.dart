@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:voomp_sellers_rebranding/src/shared/widgets/custom_button.dart';
+import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class Step1Form extends StatefulWidget {
-  final TextEditingController nameController; // Adicione este
-  final TextEditingController emailController;  final VoidCallback onContinue;
+  final TextEditingController nameController;
+  final TextEditingController emailController;
+  final VoidCallback onContinue;
 
   const Step1Form({
     super.key,
-    required this.nameController, // Requira no construtor
+    required this.nameController,
     required this.emailController,
     required this.onContinue,
   });
@@ -18,87 +19,78 @@ class Step1Form extends StatefulWidget {
 
 class _Step1FormState extends State<Step1Form> {
   final _formKey = GlobalKey<FormState>();
-
-  // Regex de Email
-  final RegExp _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+  // Regex simples para validação visual
+  final _emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
 
   bool get _isValid =>
-      widget.nameController.text.trim().isNotEmpty && // Use widget.
+      widget.nameController.text.trim().isNotEmpty &&
           _emailRegex.hasMatch(widget.emailController.text.trim());
 
   @override
-  void dispose() {
-    // REMOVA: _nameController.dispose(); (O Pai cuida disso agora)
-    super.dispose();
-  }
-
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      widget.onContinue();
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final buttonColor = _isValid ? const Color(0xFFFE8700) : const Color(0xFFC4C4C4);
+    final theme = Theme.of(context);
 
     return Form(
       key: _formKey,
+      onChanged: () => setState(() {}), // Atualiza UI ao digitar para validar botão
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Campo Nome
-          const Text("Nome Completo", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(height: 8),
+          Text(
+            "Dados Pessoais",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Nome
           TextFormField(
             controller: widget.nameController,
-            decoration: _inputDecoration("Digite seu nome"),
-            onChanged: (_) => setState(() {}),
-            validator: (value) => (value == null || value.isEmpty) ? 'Por favor, digite seu nome' : null,
-          ),
-          const SizedBox(height: 20),
-
-          // Campo Email
-          const Text("E-mail", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: widget.emailController, // Usa o controller do pai
-            decoration: _inputDecoration("Digite seu e-mail"),
-            onChanged: (_) => setState(() {}),
+            style: TextStyle(color: theme.colorScheme.onSurface),
+            decoration: const InputDecoration(
+              labelText: 'Nome Completo',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'O e-mail é obrigatório';
-              if (!_emailRegex.hasMatch(value)) return 'Digite um e-mail válido';
+              if (value == null || value.trim().isEmpty) {
+                return 'Nome obrigatório';
+              }
               return null;
             },
           ),
-          const SizedBox(height: 6),
-          const Text("ex: seunome@gmail.com", style: TextStyle(fontSize: 11, color: Colors.grey)),
-          const SizedBox(height: 30),
+          const SizedBox(height: 16),
 
-          // Botão (agora usando o CustomButton)
-          CustomButton(
-            text: "Continuar",
-            onPressed: _isValid ? _submit : null, // Se for null, o botão fica disabled (cinza) automaticamente pela lógica interna
-            backgroundColor: buttonColor,
+          // Email
+          TextFormField(
+            controller: widget.emailController,
+            style: TextStyle(color: theme.colorScheme.onSurface),
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'E-mail',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+            validator: (value) {
+              if (value == null || !_emailRegex.hasMatch(value)) {
+                return 'Digite um e-mail válido';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 32),
+
+          // Botão Continuar
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isValid ? widget.onContinue : null,
+              // O estilo vem do Theme, mas o estado 'disabled' é automático
+              child: const Text("Continuar"),
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey[400]),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFDDDDDD)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFFF8C00)),
       ),
     );
   }

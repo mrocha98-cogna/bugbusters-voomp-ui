@@ -1,51 +1,45 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 
+// Simulação de serviço de autenticação
 class AuthService {
-  static const String _userKey = 'registered_user';
+  // Singleton para manter estado em memória durante o teste
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal();
 
-  // Salva o usuário (Simulando um cadastro no backend)
-  Future<bool> registerUser({
+  String? _currentUser;
+
+  Future<bool> login(String email, String password) async {
+    // Simula delay de rede
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // Login "Fake": Aceita qualquer senha maior que 3 digitos
+    if (password.length > 3) {
+      _currentUser = "Ana Carolina"; // Nome fixo do design ou extraído do email
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> registerUser({
     required String name,
     required String email,
     required String password,
     required String cpf,
     required String phone,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Cria um mapa com os dados
-    final userData = {
-      'name': name,
-      'email': email,
-      'password': password, // Em um app real, NUNCA salve senha em texto puro!
-      'cpf': cpf,
-      'phone': phone,
-    };
-
-    // Salva como JSON string
-    return await prefs.setString(_userKey, jsonEncode(userData));
+    await Future.delayed(const Duration(milliseconds: 1500));
+    _currentUser = name;
+    // Aqui você salvaria no backend/firebase
+    debugPrint("Usuário registrado: $name, $email");
   }
 
-  // Valida o login (Simulando validação do backend)
-  Future<bool> login(String email, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-    final userString = prefs.getString(_userKey);
-
-    if (userString == null) return false; // Nenhum usuário cadastrado
-
-    final Map<String, dynamic> user = jsonDecode(userString);
-
-    // Verifica se email e senha batem
-    return user['email'] == email && user['password'] == password;
-  }
-
-  // Recupera o nome do usuário logado (opcional, para a Home)
   Future<String?> getUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userString = prefs.getString(_userKey);
-    if (userString == null) return null;
-    final Map<String, dynamic> user = jsonDecode(userString);
-    return user['name'];
+    return _currentUser ?? "Vendedor";
+  }
+
+  void logout() {
+    _currentUser = null;
   }
 }

@@ -8,7 +8,6 @@ class VoompSellersApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ouve as mudanças no ThemeController
     return AnimatedBuilder(
       animation: ThemeController.instance,
       builder: (context, child) {
@@ -16,8 +15,6 @@ class VoompSellersApp extends StatelessWidget {
           title: 'Voomp Sellers',
           debugShowCheckedModeBanner: false,
           routerConfig: AppRouter.router,
-
-          // Configuração dos Temas
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeController.instance.themeMode,

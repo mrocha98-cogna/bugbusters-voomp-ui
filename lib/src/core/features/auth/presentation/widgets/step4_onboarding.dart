@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:voomp_sellers_rebranding/src/shared/widgets/custom_button.dart';
+import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class Step4Onboarding extends StatefulWidget {
   final VoidCallback onFinish;
-
   const Step4Onboarding({super.key, required this.onFinish});
 
   @override
@@ -11,236 +10,92 @@ class Step4Onboarding extends StatefulWidget {
 }
 
 class _Step4OnboardingState extends State<Step4Onboarding> {
-  // Estado dos campos
-  String? _selectedOrigin;
-  String? _sellsOnline; // "Sim" ou "Não"
-  String? _selectedGoal; // "Vender meus produtos" ou "Ser afiliado"
-
-  // Opções do Dropdown
-  final List<String> _originOptions = [
-    "Amigo ou colega",
-    "Anúncio",
-    "Artigo ou post de blog",
-    "Evento ou feira",
-    "Podcast ou vídeo",
-    "Post nas redes sociais",
-    "Pesquisa online",
-    "Colaborador cogna",
-    "Outros",
-    "Não quero informar"
-  ];
-
-  bool get _canSubmit => _selectedGoal != null;
+  String? _selectedObjective;
 
   @override
   Widget build(BuildContext context) {
-    // Cor do botão baseada na validação
-    final buttonColor = _canSubmit ? const Color(0xFFFE8700) : const Color(0xFFC4C4C4);
+    final theme = Theme.of(context);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Dropdown "Como conheceu"
-        _buildLabel("Como conheceu a Voomp Creators?", optional: true),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedOrigin,
-          icon: const Icon(Icons.keyboard_arrow_down),
-          decoration: _inputDecoration("Selecione uma opção"),
-
-          // Expande o dropdown para preencher a largura e evitar erros de layout
-          isExpanded: true,
-
-          // Limita a altura do menu para exibir aprox. 4 itens (4 * 48px = ~192px)
-          menuMaxHeight: 200,
-
-          // Configurações visuais do Menu
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(8), // Arredonda o menu suspenso
-
-          // Estilo dos itens dentro do menu
-          items: _originOptions.map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(
-                  value,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87)
-              ),
-            );
-          }).toList(),
-
-          onChanged: (newValue) {
-            setState(() {
-              _selectedOrigin = newValue;
-            });
-          },
-          // Estilo do texto selecionado (input fechado)
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 14,
-            overflow: TextOverflow.ellipsis, // Evita quebra de linha se o texto for longo
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppPalette.success100, // Verde claro fixo para sucesso
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check, color: AppPalette.success500, size: 32),
           ),
-          // Garante que o texto selecionado no campo tenha a cor correta
-          selectedItemBuilder: (BuildContext context) {
-            return _originOptions.map<Widget>((String item) {
-              return Text(item, style: const TextStyle(color: Colors.black87));
-            }).toList();
-          },
         ),
-
-        const SizedBox(height: 20),
-
-        // 2. Radio "Você já vende pela internet?"
-        _buildLabel("Você já vende pela internet?", optional: true),
+        const SizedBox(height: 16),
+        Text(
+          "Cadastro Concluído!",
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+        ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            _buildRadioOption("Sim"),
-            const SizedBox(width: 20),
-            _buildRadioOption("Não"),
-          ],
+        Text(
+          "Para finalizar, qual seu principal objetivo?",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
         ),
+        const SizedBox(height: 32),
 
-        const SizedBox(height: 20),
-
-        // 3. Objetivo na Voomp (Cards Selecionáveis)
-        _buildLabel("Seu objetivo na Voomp é", optional: false),
+        // Opções
+        _buildOptionCard("Vender meus produtos", Icons.shopping_bag_outlined),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildGoalCard("Vender meus\nprodutos", "vender"),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildGoalCard("Ser afiliado", "afiliado"),
-            ),
-          ],
-        ),
+        _buildOptionCard("Acompanhar vendas", Icons.bar_chart),
 
-        const SizedBox(height: 30),
-
-        // 4. Botão Continuar
-        CustomButton(
-          text: "Continuar",
-          onPressed: _canSubmit ? widget.onFinish : null,
-          backgroundColor: buttonColor,
+        const SizedBox(height: 32),
+        SizedBox(
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _selectedObjective != null ? widget.onFinish : null,
+            child: const Text("Acessar Plataforma"),
+          ),
         ),
       ],
     );
   }
 
-  // --- WIDGETS AUXILIARES ---
+  Widget _buildOptionCard(String title, IconData icon) {
+    final theme = Theme.of(context);
+    final isSelected = _selectedObjective == title;
 
-  Widget _buildLabel(String text, {bool optional = false}) {
-    return RichText(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
-        children: optional
-            ? [
-          const TextSpan(
-            text: " (opcional)",
-            style: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
-          )
-        ]
-            : [],
-      ),
-    );
-  }
+    // Cores de Seleção
+    final borderColor = isSelected ? AppPalette.orange500 : theme.colorScheme.outline;
+    final bgColor = isSelected
+        ? (theme.brightness == Brightness.dark ? AppPalette.orange500.withOpacity(0.2) : AppPalette.orange100)
+        : Colors.transparent;
 
-  // Widget para os Radio Buttons Customizados
-  Widget _buildRadioOption(String value) {
-    final isSelected = _sellsOnline == value;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _sellsOnline = value;
-        });
-      },
-      child: Row(
-        children: [
-          // Círculo externo
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected ? const Color(0xFF6B4E31) : Colors.black, // Marrom se selecionado, preto se não
-                width: 2,
-              ),
-            ),
-            child: isSelected
-                ? Center(
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF6B4E31), // Marrom
-                ),
-              ),
-            )
-                : null,
-          ),
-          const SizedBox(width: 8),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-        ],
-      ),
-    );
-  }
-
-  // Widget para os Cards de Objetivo (Vender vs Afiliado)
-  Widget _buildGoalCard(String label, String value) {
-    final isSelected = _selectedGoal == value;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedGoal = value;
-        });
-      },
+    return InkWell(
+      onTap: () => setState(() => _selectedObjective = title),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        height: 60, // Altura fixa para alinhar
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF0E6), // Fundo bege claro padrão
-          border: Border.all(
-            color: isSelected ? const Color(0xFFFE8700) : Colors.transparent, // Borda laranja se selecionado
-            width: 2,
-          ),
-          borderRadius: BorderRadius.circular(8),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
         ),
-        child: Center(
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: Colors.black87,
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? AppPalette.orange500 : theme.colorScheme.onSurface),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppPalette.orange500 : theme.colorScheme.onSurface,
+              ),
             ),
-          ),
+            const Spacer(),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: AppPalette.orange500),
+          ],
         ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey[400]),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFDDDDDD)), // Borda cinza padrão
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFF6B4E31)), // Borda marrom ao focar
       ),
     );
   }
