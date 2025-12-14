@@ -1,0 +1,35 @@
+name: voomp_sellers_rebranding
+description: "Venda seus infoprodutos na plataforma do maior grupo de educação do Brasil."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  animate_do: ^4.2.0
+  url_launcher: ^6.3.2
+  font_awesome_flutter: ^10.12.0
+  flutter_svg: ^2.2.3
+  go_router: ^17.0.1
+  shared_preferences: ^2.5.4
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+  flutter_test:
+    sdk: flutter
+  integration_test: # Adicione esta linha
+    sdk: flutter    # Adicione esta linha
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
