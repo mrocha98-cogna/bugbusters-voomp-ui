@@ -3,6 +3,7 @@ import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class Step4Onboarding extends StatefulWidget {
   final VoidCallback onFinish;
+
   const Step4Onboarding({super.key, required this.onFinish});
 
   @override
@@ -10,92 +11,257 @@ class Step4Onboarding extends StatefulWidget {
 }
 
 class _Step4OnboardingState extends State<Step4Onboarding> {
+  // Estados
+  String? _selectedSource;
+  bool? _salesExperience; // true = Sim, false = Não
   String? _selectedObjective;
+
+  // Lista de Opções do Dropdown
+  final List<String> _sourceOptions = [
+    "Amigo ou colega",
+    "Anúncio",
+    "Artigo ou post de blog",
+    "Evento ou feira",
+    "Podcast ou vídeo",
+    "Post nas redes sociais",
+    "Pesquisa online",
+    "Colaborador cogna",
+    "Outros"
+  ];
+
+  // Validação simples: objetivo é obrigatório? (Na imagem parece que o dropdown e radio são opcionais, mas o objetivo é seleção principal)
+  // Vamos deixar o botão habilitado se o objetivo for selecionado.
+  bool get _isValid => _selectedObjective != null;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Cor bege claro para cards desabilitados (baseado na imagem)
+    final unselectedCardColor = const Color(0xFFFFF5EB);
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppPalette.success100, // Verde claro fixo para sucesso
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check, color: AppPalette.success500, size: 32),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          "Cadastro Concluído!",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-        ),
+
+        // --- DROPDOWN: COMO CONHECEU ---
+        _buildLabel("Como conheceu a Voomp Creators?", optional: true, theme: theme),
         const SizedBox(height: 8),
-        Text(
-          "Para finalizar, qual seu principal objetivo?",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+        DropdownButtonFormField<String>(
+          value: _selectedSource,
+          icon: const Icon(Icons.keyboard_arrow_down),
+          elevation: 2,
+          // Fundo branco para o menu suspenso
+          dropdownColor: Colors.white,
+          // Altura máxima para exibir aprox 4 itens (4 items * ~48px = ~200)
+          menuMaxHeight: 250,
+          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+          decoration: _inputDecoration(theme),
+          hint: Text(
+            "Selecione uma opção", // Ou "Não quero informar" se for o default
+            style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
+          ),
+          items: _sourceOptions.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+          onChanged: (newValue) {
+            setState(() => _selectedSource = newValue);
+          },
         ),
+
+        const SizedBox(height: 20),
+
+        // --- RADIO: JÁ VENDE PELA INTERNET? ---
+        _buildLabel("Você já vende pela Internet?", optional: true, theme: theme),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _buildRadioButton(
+              label: "Sim",
+              value: true,
+              groupValue: _salesExperience,
+              onChanged: (v) => setState(() => _salesExperience = v),
+              theme: theme,
+            ),
+            const SizedBox(width: 24),
+            _buildRadioButton(
+              label: "Não",
+              value: false,
+              groupValue: _salesExperience,
+              onChanged: (v) => setState(() => _salesExperience = v),
+              theme: theme,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // --- CARDS: OBJETIVO ---
+        _buildLabel("Seu objetivo na Voomp é:", theme: theme), // Sem opcional aqui
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildObjectiveCard(
+                label: "Vender meus\nprodutos",
+                value: "seller",
+                unselectedColor: unselectedCardColor,
+                theme: theme,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildObjectiveCard(
+                label: "Ser afiliado",
+                value: "affiliate",
+                unselectedColor: unselectedCardColor,
+                theme: theme,
+              ),
+            ),
+          ],
+        ),
+
         const SizedBox(height: 32),
 
-        // Opções
-        _buildOptionCard("Vender meus produtos", Icons.shopping_bag_outlined),
-        const SizedBox(height: 12),
-        _buildOptionCard("Acompanhar vendas", Icons.bar_chart),
-
-        const SizedBox(height: 32),
+        // --- BOTÃO CONTINUAR ---
         SizedBox(
+          width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: _selectedObjective != null ? widget.onFinish : null,
-            child: const Text("Acessar Plataforma"),
+            onPressed: _isValid ? widget.onFinish : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isValid ? AppPalette.orange500 : AppPalette.neutral300,
+              foregroundColor: _isValid ? Colors.white : AppPalette.neutral600,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              "Continuar",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildOptionCard(String title, IconData icon) {
-    final theme = Theme.of(context);
-    final isSelected = _selectedObjective == title;
+  // --- WIDGETS AUXILIARES ---
 
-    // Cores de Seleção
-    final borderColor = isSelected ? AppPalette.orange500 : theme.colorScheme.outline;
-    final bgColor = isSelected
-        ? (theme.brightness == Brightness.dark ? AppPalette.orange500.withOpacity(0.2) : AppPalette.orange100)
-        : Colors.transparent;
-
-    return InkWell(
-      onTap: () => setState(() => _selectedObjective = title),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+  Widget _buildLabel(String text, {bool optional = false, required ThemeData theme}) {
+    return RichText(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.onSurface,
+          fontFamily: theme.textTheme.bodyMedium?.fontFamily,
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: isSelected ? AppPalette.orange500 : theme.colorScheme.onSurface),
-            const SizedBox(width: 16),
-            Text(
-              title,
+        children: [
+          if (optional)
+            TextSpan(
+              text: " (opcional)",
               style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppPalette.orange500 : theme.colorScheme.onSurface,
+                fontWeight: FontWeight.normal,
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
               ),
             ),
-            const Spacer(),
-            if (isSelected)
-              const Icon(Icons.check_circle, color: AppPalette.orange500),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRadioButton({
+    required String label,
+    required bool value,
+    required bool? groupValue,
+    required Function(bool?) onChanged,
+    required ThemeData theme,
+  }) {
+    final isSelected = value == groupValue;
+    return InkWell(
+      onTap: () => onChanged(value),
+      borderRadius: BorderRadius.circular(4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Radio<bool>(
+            value: value,
+            groupValue: groupValue,
+            onChanged: onChanged,
+            activeColor: AppPalette.orange500, // Cor do "miolo" selecionado
+            // Cor da borda quando não selecionado
+            fillColor: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return const Color(0xFF5E3F29); // Um marrom escuro/laranja queimado conforme imagem
+              }
+              return theme.colorScheme.onSurface;
+            }),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildObjectiveCard({
+    required String label,
+    required String value,
+    required Color unselectedColor,
+    required ThemeData theme,
+  }) {
+    final isSelected = _selectedObjective == value;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedObjective = value),
+      child: Container(
+        height: 80, // Altura fixa para alinhar
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          // SELECIONADO: Fundo branco (ou surface), NÃO SELECIONADO: Bege
+          color: isSelected ? theme.cardTheme.color : unselectedColor,
+          borderRadius: BorderRadius.circular(8),
+          // Borda Laranja apenas se selecionado
+          border: isSelected ? Border.all(color: AppPalette.orange500, width: 1.5) : null,
         ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            // Texto Preto sempre (conforme imagem 3), ou laranja se preferir destacar
+            color: Colors.black,
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(ThemeData theme) {
+    return InputDecoration(
+      filled: true,
+      fillColor: Colors.transparent,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppPalette.neutral300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppPalette.neutral800),
       ),
     );
   }

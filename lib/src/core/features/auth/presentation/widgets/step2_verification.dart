@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Necessário para filtrar apenas números
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class Step2Verification extends StatefulWidget {
@@ -16,12 +17,21 @@ class Step2Verification extends StatefulWidget {
 }
 
 class _Step2VerificationState extends State<Step2Verification> {
-  // Lista de controllers para os 6 dígitos
+  // 6 Controllers e 6 FocusNodes para manipular o foco entre os dígitos
   final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
-  // Lista de FocusNodes para pular pro próximo campo
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
-  String? _errorMessage;
+  // Estado para validar se todos os campos estão preenchidos
+  bool _isValid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ouve mudanças em todos os controllers para validar o botão
+    for (var controller in _controllers) {
+      controller.addListener(_validateForm);
+    }
+  }
 
   @override
   void dispose() {
@@ -30,17 +40,30 @@ class _Step2VerificationState extends State<Step2Verification> {
     super.dispose();
   }
 
-  void _validateAndSubmit() {
-    final code = _controllers.map((c) => c.text).join();
-    if (code.length < 6) return;
-
-    // Simulação de validação
-    if (code == "123456") {
-      widget.onContinue();
-    } else {
+  void _validateForm() {
+    // Verifica se todos os campos tem pelo menos 1 caractere
+    final allFilled = _controllers.every((c) => c.text.isNotEmpty);
+    if (allFilled != _isValid) {
       setState(() {
-        _errorMessage = "O código está incorreto";
+        _isValid = allFilled;
       });
+    }
+  }
+
+  void _onDigitEntered(int index, String value) {
+    if (value.isNotEmpty) {
+      // Se digitou e não é o último, vai para o próximo
+      if (index < 5) {
+        _focusNodes[index + 1].requestFocus();
+      } else {
+        // Se é o último, tira o foco (fecha teclado)
+        _focusNodes[index].unfocus();
+      }
+    } else {
+      // Se apagou (ficou vazio) e não é o primeiro, volta para o anterior
+      if (index > 0) {
+        _focusNodes[index - 1].requestFocus();
+      }
     }
   }
 
@@ -49,88 +72,133 @@ class _Step2VerificationState extends State<Step2Verification> {
     final theme = Theme.of(context);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.center, // Centraliza tudo horizontalmente
       children: [
+
+        // --- TEXTOS DE INSTRUÇÃO ---
         Text(
-          "Verifique seu e-mail",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+          "Por favor, digite o código que\nenviamos para o email:",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: theme.colorScheme.onSurface.withOpacity(0.7),
+          ),
         ),
         const SizedBox(height: 8),
         Text(
-          "Enviamos um código para ${widget.email}",
-          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+          widget.email,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
+
         const SizedBox(height: 32),
 
-        // Campos de Código (Pin Input)
+        // --- INPUTS DE CÓDIGO (LINHA ÚNICA) ---
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(6, (index) {
-            return SizedBox(
-              width: 45,
-              height: 55,
-              child: TextFormField(
-                controller: _controllers[index],
-                focusNode: _focusNodes[index],
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-                keyboardType: TextInputType.number,
-                maxLength: 1,
-                decoration: InputDecoration(
-                  counterText: "",
-                  contentPadding: EdgeInsets.zero,
-                  // Borda muda se tiver erro
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: _errorMessage != null ? AppPalette.error500 : theme.colorScheme.outline,
-                    ),
-                  ),
-                ),
-                onChanged: (value) {
-                  setState(() => _errorMessage = null); // Limpa erro ao digitar
-                  if (value.isNotEmpty && index < 5) {
-                    _focusNodes[index + 1].requestFocus();
-                  }
-                  if (value.isEmpty && index > 0) {
-                    _focusNodes[index - 1].requestFocus();
-                  }
-                },
-              ),
-            );
+            return _buildSingleDigitInput(index, theme);
           }),
         ),
 
-        // Mensagem de Erro
-        if (_errorMessage != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.error_outline, color: AppPalette.error500, size: 16),
-                const SizedBox(width: 4),
-                Text(_errorMessage!, style: const TextStyle(color: AppPalette.error500, fontSize: 12)),
-              ],
-            ),
-          ),
-
         const SizedBox(height: 32),
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _validateAndSubmit,
-            child: const Text("Verificar"),
+
+        // --- RODAPÉ "NÃO ENCONTROU?" ---
+        Text(
+          "Não encontrou?",
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "Confira na aba Spam ou Promoções do\nseu e-mail.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
           ),
         ),
 
-        const SizedBox(height: 16),
-        Center(
-          child: TextButton(
-            onPressed: () {}, // Lógica de reenviar
-            child: const Text("Reenviar código"),
+        const SizedBox(height: 32),
+
+        // --- BOTÃO CONTINUAR ---
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _isValid ? widget.onContinue : null,
+            style: ElevatedButton.styleFrom(
+              // Cor Laranja (conforme imagem) quando ativo
+              backgroundColor: _isValid ? AppPalette.orange500 : AppPalette.neutral300,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              "Continuar",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  // Widget auxiliar para cada dígito (Estilo Underline)
+  Widget _buildSingleDigitInput(int index, ThemeData theme) {
+    return SizedBox(
+      width: 40,
+      child: TextFormField(
+        controller: _controllers[index],
+        focusNode: _focusNodes[index],
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        maxLength: 1, // Apenas 1 dígito
+
+        // Estilo do texto (Grande e Negrito como na imagem)
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.onSurface,
+        ),
+
+        // Filtra para aceitar apenas dígitos
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+
+        decoration: InputDecoration(
+          counterText: "", // Esconde o contador "0/1"
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+
+          // Borda habilitada (Linha cinza)
+          enabledBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: AppPalette.neutral400, width: 2),
+          ),
+
+          // Borda Focada (Linha preta ou laranja)
+          focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: AppPalette.neutral800, width: 2),
+          ),
+
+          // Borda sem foco (para garantir alinhamento)
+          border: const UnderlineInputBorder(
+            borderSide: BorderSide(color: AppPalette.neutral300),
+          ),
+        ),
+
+        onChanged: (value) => _onDigitEntered(index, value),
+      ),
     );
   }
 }

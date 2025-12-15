@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/theme_controller.dart';
-import 'package:voomp_sellers_rebranding/src/shared/widgets/custom_button.dart';
 
 // ==========================================
-// 1. ESTRUTURA PRINCIPAL (SHELL)
+// 1. HOME PAGE PRINCIPAL
 // ==========================================
 
 class HomePage extends StatefulWidget {
@@ -28,75 +27,70 @@ class _HomePageState extends State<HomePage> {
 
   void _loadUser() async {
     final name = await _authService.getUserName();
-    if (name != null) {
+    if (name != null && mounted) {
       setState(() {
-        _userName = name.split(' ').first;
+        _userName = name;
       });
     }
   }
 
-  // Lista de Telas
   late final List<Widget> _pages = [
     DashboardContent(userName: _userName), // 0: Home
-    const Center(child: Text("Tela de Produtos")), // 1: Produtos
-    const SizedBox(), // 2: Placeholder do Botão Central
-    const Center(child: Text("Tela Financeira")), // 3: Financeiro
-    const ProfileContent(), // 4: Perfil (Com Toggle de Tema)
+    const Center(child: Text("Produtos")), // 1
+    const SizedBox(), // 2 (FAB placeholder)
+    const Center(child: Text("Financeiro")), // 3
+    ProfileTab(userName: _userName), // 4: Perfil com Tema
   ];
 
   void _onItemTapped(int index) {
-    if (index == 2) return; // Ação do botão central tratada no FAB
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (index == 2) return;
+    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      // Background vem do Theme (AppTheme.scaffoldBackgroundColor)
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sidebar Desktop
-          if (!isMobile)
-            _SidebarMenu(
-              selectedIndex: _selectedIndex,
-              onItemSelected: _onItemTapped,
-            ),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Sidebar (Apenas Desktop)
+            if (!isMobile)
+              _SidebarMenu(
+                selectedIndex: _selectedIndex,
+                onItemSelected: _onItemTapped,
+              ),
 
-          // Conteúdo Principal
-          Expanded(
-            child: _pages[_selectedIndex],
-          ),
-        ],
+            // Área de Conteúdo
+            Expanded(
+              child: _pages[_selectedIndex],
+            ),
+          ],
+        ),
       ),
 
-      // Botão Flutuante (Mobile)
+      // Bottom Nav (Apenas Mobile)
       floatingActionButton: isMobile
           ? FloatingActionButton(
-        onPressed: () => _onItemTapped(2),
+        onPressed: () {},
         backgroundColor: AppPalette.orange500,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: Colors.white, size: 32),
       )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
-      // Menu Inferior (Mobile)
       bottomNavigationBar: isMobile
           ? BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,
-        color: theme.colorScheme.surface, // Adapta ao tema (Branco ou Cinza Escuro)
+        color: theme.cardColor,
         surfaceTintColor: Colors.transparent,
         elevation: 10,
-        height: 70,
-        padding: EdgeInsets.zero,
+        shadowColor: Colors.black.withOpacity(0.1),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -114,18 +108,10 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildBottomNavItem(int index, IconData icon) {
     final isSelected = _selectedIndex == index;
-    final theme = Theme.of(context);
-
-    // Cor inativa muda dependendo do tema para garantir contraste
-    final inactiveColor = theme.brightness == Brightness.dark
-        ? AppPalette.neutral500
-        : AppPalette.neutral400;
-
     return IconButton(
       icon: Icon(
         icon,
-        color: isSelected ? AppPalette.orange500 : inactiveColor,
-        size: 28,
+        color: isSelected ? AppPalette.orange500 : AppPalette.neutral400,
       ),
       onPressed: () => _onItemTapped(index),
     );
@@ -133,78 +119,7 @@ class _HomePageState extends State<HomePage> {
 }
 
 // ==========================================
-// 2. CONTEÚDO DO PERFIL (TELA 4)
-// ==========================================
-
-class ProfileContent extends StatelessWidget {
-  const ProfileContent({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = ThemeController.instance.isDarkMode;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Minha Conta",
-            style: TextStyle(
-                fontSize: 28, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-          ),
-          const SizedBox(height: 32),
-
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: theme.cardTheme.color,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                // Toggle de Tema
-                ListTile(
-                  leading: Icon(
-                    isDark ? Icons.dark_mode : Icons.light_mode,
-                    color: AppPalette.orange500,
-                  ),
-                  title: Text(
-                    "Modo Escuro",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-                  ),
-                  subtitle: Text(
-                    isDark ? "Ativado" : "Desativado",
-                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
-                  ),
-                  trailing: Switch(
-                    value: isDark,
-                    activeColor: AppPalette.orange500,
-                    onChanged: (value) {
-                      ThemeController.instance.toggleTheme();
-                    },
-                  ),
-                ),
-                Divider(color: theme.dividerColor),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: AppPalette.error500),
-                  title: const Text("Sair da conta", style: TextStyle(color: AppPalette.error500)),
-                  onTap: () {
-                    // Adicione lógica de logout aqui
-                  },
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-}
-
-// ==========================================
-// 3. DASHBOARD (TELA 0)
+// 2. CONTEÚDO DO DASHBOARD
 // ==========================================
 
 class DashboardContent extends StatelessWidget {
@@ -213,11 +128,12 @@ class DashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 900;
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
+    final padding = isDesktop ? 40.0 : 20.0;
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+      padding: EdgeInsets.fromLTRB(padding, padding, padding, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -225,59 +141,49 @@ class DashboardContent extends StatelessWidget {
           Text(
             "Olá, $userName",
             style: TextStyle(
-                fontSize: 28, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onBackground),
           ),
           const SizedBox(height: 8),
           Text(
             "Estamos muito felizes de te receber aqui. Te desejamos boas vendas!",
-            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+            style: TextStyle(color: theme.colorScheme.onBackground.withOpacity(0.6), fontSize: 14),
           ),
           const SizedBox(height: 32),
 
-          const _OnboardingProgressCard(),
+          // 1. Onboarding Card
+          const _OnboardingStepsCard(),
           const SizedBox(height: 24),
 
-          // Layout Responsivo
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (isMobile) {
-                return const Column(
-                  children: [
-                    _IdentityValidationCard(),
-                    SizedBox(height: 24),
-                    _BalanceCard(),
-                    SizedBox(height: 24),
-                    _SalesCard(),
-                    SizedBox(height: 24),
-                    _CreditCardRefusals(),
-                    SizedBox(height: 80), // Espaço para BottomNav
-                  ],
-                );
-              } else {
-                return Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Expanded(flex: 3, child: _IdentityValidationCard()),
-                        SizedBox(width: 24),
-                        Expanded(flex: 2, child: _BalanceCard()),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Expanded(flex: 3, child: _SalesCard()),
-                        SizedBox(width: 24),
-                        Expanded(flex: 2, child: _CreditCardRefusals()),
-                      ],
-                    ),
-                  ],
-                );
-              }
-            },
-          ),
+          // 2. Layout Responsivo
+          if (!isDesktop) ...[
+            const _IdentityValidationCard(),
+            const SizedBox(height: 24),
+            const _BalanceCard(),
+            const SizedBox(height: 24),
+            const _SalesCard(isMobile: true),
+            const SizedBox(height: 24),
+            const _CreditCardRefusals(),
+          ] else ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Expanded(flex: 3, child: _IdentityValidationCard()),
+                SizedBox(width: 24),
+                Expanded(flex: 2, child: _BalanceCard()),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Expanded(flex: 3, child: _SalesCard(isMobile: false)),
+                SizedBox(width: 24),
+                Expanded(flex: 2, child: _CreditCardRefusals()),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -285,78 +191,233 @@ class DashboardContent extends StatelessWidget {
 }
 
 // ==========================================
-// 4. SIDEBAR MENU
+// 3. ABA DE PERFIL COM MUDANÇA DE TEMA
 // ==========================================
 
-class _SidebarMenu extends StatelessWidget {
-  final int selectedIndex;
-  final Function(int) onItemSelected;
-
-  const _SidebarMenu({required this.selectedIndex, required this.onItemSelected});
+class ProfileTab extends StatelessWidget {
+  final String userName;
+  const ProfileTab({super.key, required this.userName});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Usamos AnimatedBuilder para ouvir mudanças no ThemeController
+    return AnimatedBuilder(
+      animation: ThemeController.instance,
+      builder: (context, child) {
+        final isDark = ThemeController.instance.themeMode == ThemeMode.dark;
 
-    return Container(
-      width: 80,
-      color: theme.cardTheme.color, // Cor do card (Branco/Cinza Dark)
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          const Icon(Icons.incomplete_circle, color: AppPalette.orange500, size: 32),
-          const SizedBox(height: 40),
+        return Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: AppPalette.orange500.withOpacity(0.2),
+                  child: Text(
+                    userName.isNotEmpty ? userName.substring(0, 2).toUpperCase() : "AA",
+                    style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: AppPalette.orange500
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  userName,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onBackground,
+                  ),
+                ),
+                Text(
+                  "vendedor@voomp.com.br",
+                  style: TextStyle(color: theme.colorScheme.onBackground.withOpacity(0.6)),
+                ),
+                const SizedBox(height: 40),
 
-          _buildSidebarItem(context, 0, Icons.home_filled),
-          _buildSidebarItem(context, 1, Icons.inventory_2_outlined),
-          _buildSidebarItem(context, 2, Icons.add_circle_outline, isAction: true),
-          _buildSidebarItem(context, 3, Icons.account_balance_wallet_outlined),
-          _buildSidebarItem(context, 4, Icons.person_outline),
-
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Icon(Icons.logout, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                Container(
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(
+                          isDark ? Icons.dark_mode : Icons.light_mode,
+                          color: AppPalette.orange500,
+                        ),
+                        title: Text("Modo Escuro", style: TextStyle(color: theme.colorScheme.onSurface)),
+                        trailing: Switch(
+                          value: isDark,
+                          activeColor: AppPalette.orange500,
+                          onChanged: (value) {
+                            ThemeController.instance.toggleTheme();
+                          },
+                        ),
+                      ),
+                      Divider(height: 1, color: theme.dividerColor),
+                      ListTile(
+                        leading: const Icon(Icons.logout, color: Colors.red),
+                        title: const Text("Sair da conta", style: TextStyle(color: Colors.red)),
+                        onTap: () {
+                          // Implementar logout
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebarItem(BuildContext context, int index, IconData icon, {bool isAction = false}) {
-    final isActive = selectedIndex == index;
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    // Lógica de Cores da Sidebar
-    final iconColor = isActive || isAction
-        ? AppPalette.orange500
-        : theme.colorScheme.onSurface.withOpacity(0.7);
-
-    // Background do item ativo: Laranja claro no light, Laranja translúcido no dark
-    final activeBgColor = isDark
-        ? AppPalette.orange500.withOpacity(0.15)
-        : AppPalette.orange100;
-
-    return GestureDetector(
-      onTap: () => onItemSelected(index),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        height: 48,
-        width: 48,
-        decoration: BoxDecoration(
-          color: isActive ? activeBgColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: isAction ? Border.all(color: AppPalette.orange500) : null,
-        ),
-        child: Icon(icon, color: iconColor, size: 24),
-      ),
+        );
+      },
     );
   }
 }
 
 // ==========================================
-// 5. WIDGETS INTERNOS (CARDS REFATORADOS)
+// 4. CARD DE ONBOARDING (STEPS)
+// ==========================================
+
+class _OnboardingStepsCard extends StatelessWidget {
+  const _OnboardingStepsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Complete seu cadastro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+              const Text("20%", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppPalette.orange500)),
+            ],
+          ),
+          Text("1 de 5 etapas concluídas", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
+          const SizedBox(height: 16),
+
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: const LinearProgressIndicator(
+              value: 0.2,
+              minHeight: 8,
+              backgroundColor: Color(0xFFE0E0E0),
+              color: AppPalette.orange500,
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildStepCard(context, Icons.check, "Dados Pessoais", "Suas informações", _StepState.completed),
+                _buildConnector(),
+                _buildStepCard(context, Icons.shield_outlined, "Identidade", "Validação", _StepState.current),
+                _buildConnector(),
+                _buildStepCard(context, Icons.apartment, "Empresa", "Dados da Empresa", _StepState.locked),
+                _buildConnector(),
+                _buildStepCard(context, Icons.inventory_2_outlined, "Produto", "Primeiro Produto", _StepState.locked),
+                _buildConnector(),
+                _buildStepCard(context, Icons.sell_outlined, "Primeira Venda", "Vender e Sacar", _StepState.locked),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnector() {
+    return Container(
+      width: 30,
+      height: 2,
+      color: AppPalette.orange500.withOpacity(0.2),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+    );
+  }
+
+  Widget _buildStepCard(BuildContext context, IconData icon, String title, String subtitle, _StepState state) {
+    Color bg, border, content;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    switch (state) {
+      case _StepState.completed:
+        bg = isDark ? Colors.green.withOpacity(0.2) : const Color(0xFFE8F5E9);
+        border = Colors.transparent;
+        content = isDark ? Colors.greenAccent : const Color(0xFF2E7D32);
+        break;
+      case _StepState.current:
+        bg = isDark ? Colors.orange.withOpacity(0.1) : const Color(0xFFFFF3E0);
+        border = AppPalette.orange500;
+        content = AppPalette.orange500;
+        break;
+      case _StepState.locked:
+        bg = isDark ? Colors.grey.withOpacity(0.1) : const Color(0xFFFFF3E0).withOpacity(0.4);
+        border = Colors.transparent;
+        content = isDark ? Colors.grey : Colors.brown.withOpacity(0.5);
+        break;
+    }
+
+    return Container(
+      width: 140,
+      height: 120,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: border, width: 2),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: content.withOpacity(0.5), width: 1.5),
+            ),
+            child: Icon(icon, size: 20, color: content),
+          ),
+          const SizedBox(height: 12),
+          Text(title, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: content)),
+          const SizedBox(height: 4),
+          Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: content.withOpacity(0.8))),
+        ],
+      ),
+    );
+  }
+}
+
+enum _StepState { completed, current, locked }
+
+// ==========================================
+// 5. CARD VALIDAÇÃO
 // ==========================================
 
 class _IdentityValidationCard extends StatelessWidget {
@@ -370,86 +431,98 @@ class _IdentityValidationCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-          color: theme.cardTheme.color,
-          borderRadius: BorderRadius.circular(12)
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32, height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppPalette.orange500),
-                    ),
-                    child: const Center(
-                        child: Text("2", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppPalette.orange500))),
-                  ),
-                  const SizedBox(width: 12),
-                  Text("Validação de Identidade",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
-                ],
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? AppPalette.orange500.withOpacity(0.2) : AppPalette.orange100,
-                  borderRadius: BorderRadius.circular(4),
+                width: 32, height: 32,
+                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppPalette.orange500)),
+                child: const Center(child: Text("2", style: TextStyle(fontWeight: FontWeight.bold, color: AppPalette.orange500))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Validação de Identidade", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: const Color(0xFFFFF3E0), borderRadius: BorderRadius.circular(4)),
+                          child: const Text("Em andamento", style: TextStyle(color: AppPalette.orange500, fontSize: 10, fontWeight: FontWeight.bold)),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text("Faça a validação dos seus documentos para liberar todas as funcionalidades",
+                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 13)),
+                  ],
                 ),
-                child: const Text("Em andamento", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppPalette.orange500)),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-              "Faça a validação dos seus documentos para liberar todas as funcionalidades",
-              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 14)),
           const SizedBox(height: 24),
 
           Container(
             padding: const EdgeInsets.all(16),
+            width: double.infinity,
             decoration: BoxDecoration(
-              // Usa surfaceContainerHighest para diferenciar fundo secundário
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8)),
+              color: isDark ? Colors.grey.withOpacity(0.1) : const Color(0xFFFFF3E0).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text("O que você precisa:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 12),
-                _buildReqItem(context, Icons.description_outlined, "Documentação - CPF"),
+                _item(context, Icons.description_outlined, "Documentação - CPF"),
                 const SizedBox(height: 8),
-                _buildReqItem(context, Icons.face, "Selfie - Foto do rosto ao vivo"),
+                _item(context, Icons.face, "Selfie - Foto do rosto ao vivo"),
               ],
             ),
           ),
           const SizedBox(height: 24),
-          CustomButton(
-            text: "Validar identidade",
-            onPressed: () {},
-            backgroundColor: AppPalette.orange500,
+
+          SizedBox(
+            width: double.infinity,
+            height: 45,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppPalette.orange500,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                elevation: 0,
+              ),
+              child: const Text("Validar identidade", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           )
         ],
       ),
     );
   }
 
-  Widget _buildReqItem(BuildContext context, IconData icon, String text) {
-    final color = Theme.of(context).colorScheme.onSurface;
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 8),
-        Text(text, style: TextStyle(fontSize: 13, color: color)),
-      ],
-    );
+  Widget _item(BuildContext context, IconData icon, String text) {
+    final theme = Theme.of(context);
+    return Row(children: [
+      Icon(icon, size: 16, color: theme.colorScheme.onSurface),
+      const SizedBox(width: 8),
+      Text(text, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface)),
+    ]);
   }
 }
+
+// ==========================================
+// 6. CARD SALDO
+// ==========================================
 
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard();
@@ -457,12 +530,13 @@ class _BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-          color: theme.cardTheme.color,
-          borderRadius: BorderRadius.circular(12)
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,30 +545,35 @@ class _BalanceCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("Meu Saldo", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
-              Icon(Icons.credit_card, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+              const Icon(Icons.credit_card, size: 20, color: Colors.grey),
             ],
           ),
           const SizedBox(height: 24),
-          Text("R\$ 0,00", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-          const SizedBox(height: 40),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("R\$ 0,00", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              const Icon(Icons.visibility_off_outlined, color: Colors.grey, size: 20),
+            ],
+          ),
+          const SizedBox(height: 32),
+
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+                color: isDark ? Colors.grey.withOpacity(0.1) : const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8)
             ),
             child: Row(
               children: [
-                Icon(Icons.shield_outlined, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                Icon(Icons.shield_outlined, size: 24, color: theme.colorScheme.onSurface.withOpacity(0.6)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Complete seu cadastro",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: theme.colorScheme.onSurface)),
-                      Text("Adicione os seus dados bancários para poder sacar",
-                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                      Text("Complete seu cadastro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: theme.colorScheme.onSurface)),
+                      Text("Adicione os seus dados bancários para poder sacar", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6))),
                     ],
                   ),
                 )
@@ -502,16 +581,17 @@ class _BalanceCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+
           SizedBox(
             width: double.infinity,
-            height: 45,
+            height: 40,
             child: ElevatedButton(
-              onPressed: () {}, // Habilitar quando cadastro ok
+              onPressed: () {},
               style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.secondary, // Azul
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8))),
+                backgroundColor: isDark ? Colors.grey[800] : const Color(0xFF0F172A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
               child: const Text("Adicionar dados bancários"),
             ),
           )
@@ -521,73 +601,136 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
+// ==========================================
+// 7. CARD VENDAS
+// ==========================================
+
 class _SalesCard extends StatelessWidget {
-  const _SalesCard();
+  final bool isMobile;
+  const _SalesCard({this.isMobile = false});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-          color: theme.cardTheme.color,
-          borderRadius: BorderRadius.circular(12)
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
+      child: isMobile
+          ? Column(
+        children: [
+          _buildLeftContent(context),
+          const Divider(height: 48),
+          _buildRightContent(context),
+        ],
+      )
+          : Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Vendas",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
-              Container(
-                decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(20)),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                          color: AppPalette.neutral400,
-                          borderRadius: BorderRadius.circular(20)),
-                      child: const Text("Hoje",
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text("30 dias",
-                          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.6))),
-                    ),
-                  ],
-                ),
-              )
-            ],
-          ),
-          const SizedBox(height: 30),
-          // Empty State
-          Center(
-            child: Column(
-              children: [
-                Icon(Icons.sell_outlined, size: 48, color: theme.colorScheme.onSurface.withOpacity(0.2)),
-                const SizedBox(height: 16),
-                Text("Nenhuma venda ainda", style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                    onPressed: (){},
-                    style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.secondary),
-                    child: const Text("Criar produto +", style: TextStyle(color: Colors.white))
-                )
-              ],
-            ),
-          )
+          Expanded(flex: 3, child: _buildLeftContent(context)),
+          Container(width: 1, color: theme.dividerColor, margin: const EdgeInsets.symmetric(horizontal: 24), height: 250),
+          Expanded(flex: 2, child: _buildRightContent(context)),
         ],
       ),
     );
   }
+
+  Widget _buildLeftContent(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Vendas", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+        const SizedBox(height: 32),
+        Center(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: theme.colorScheme.onSurface.withOpacity(0.1), shape: BoxShape.circle),
+                child: Icon(Icons.sell_outlined, size: 32, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+              ),
+              const SizedBox(height: 16),
+              Text("Nenhuma venda ainda", style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              const SizedBox(height: 4),
+              Text("Crie seu primeiro produto para começar a vender e acompanhar suas vendas aqui",
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                  onPressed: (){},
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.onSurface,
+                      side: BorderSide(color: theme.dividerColor),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))
+                  ),
+                  child: const Text("Ver tutorial")
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                  onPressed: (){},
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))
+                  ),
+                  child: const Text("Criar produto +")
+              ),
+            ),
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget _buildRightContent(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _badge(context, "Hoje", true),
+            const SizedBox(width: 4),
+            _badge(context, "30 dias", false),
+          ],
+        ),
+        const SizedBox(height: 32),
+        Align(alignment: Alignment.centerRight, child: Text("R\$ 0,00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface))),
+        Align(alignment: Alignment.centerRight, child: Text("Vendas de hoje", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)))),
+        const SizedBox(height: 24),
+        Align(alignment: Alignment.centerRight, child: Text("R\$ 0,00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface))),
+        Align(alignment: Alignment.centerRight, child: Text("Últimos 30 dias", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)))),
+      ],
+    );
+  }
+
+  Widget _badge(BuildContext context, String text, bool active) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+          color: active ? theme.colorScheme.onSurface.withOpacity(0.2) : theme.colorScheme.onSurface.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12)
+      ),
+      child: Text(text, style: TextStyle(fontSize: 10, fontWeight: active ? FontWeight.bold : FontWeight.normal, color: theme.colorScheme.onSurface)),
+    );
+  }
 }
+
+// ==========================================
+// 8. CARD RECUSAS
+// ==========================================
 
 class _CreditCardRefusals extends StatelessWidget {
   const _CreditCardRefusals();
@@ -595,26 +738,44 @@ class _CreditCardRefusals extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-          color: theme.cardTheme.color,
-          borderRadius: BorderRadius.circular(12)
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Recusas do cartão",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+          Text("Recusas do cartão de crédito", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+          Text("Últimos 7 dias", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
           const SizedBox(height: 24),
           Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CircularProgressIndicator(value: 0, backgroundColor: theme.colorScheme.surfaceContainerHighest, color: AppPalette.orange500),
-                Text("0%", style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface))
-              ],
+            child: SizedBox(
+              height: 100, width: 100,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(value: 1, color: theme.colorScheme.onSurface.withOpacity(0.1), strokeWidth: 8),
+                  Text("0%", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(child: Text("Crie um produto e comece a vendê-lo.", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)))),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppPalette.orange500,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
+              child: const Text("Criar produto +"),
             ),
           )
         ],
@@ -623,42 +784,61 @@ class _CreditCardRefusals extends StatelessWidget {
   }
 }
 
-class _OnboardingProgressCard extends StatelessWidget {
-  const _OnboardingProgressCard();
+// ==========================================
+// 9. SIDEBAR MENU
+// ==========================================
+
+class _SidebarMenu extends StatelessWidget {
+  final int selectedIndex;
+  final Function(int) onItemSelected;
+
+  const _SidebarMenu({required this.selectedIndex, required this.onItemSelected});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      width: 70,
+      color: theme.cardColor,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Complete seu cadastro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
-              const Text("20%", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppPalette.orange500)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text("1 de 5 etapas concluídas", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 12)),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: 0.2,
-              minHeight: 8,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              color: AppPalette.orange500,
+          const SizedBox(height: 24),
+          const Icon(Icons.incomplete_circle, color: AppPalette.orange500, size: 32),
+          const SizedBox(height: 40),
+
+          _iconBtn(context, Icons.home_filled, 0),
+          _iconBtn(context, Icons.inventory_2, 1),
+          _iconBtn(context, Icons.pie_chart_outline, 2),
+          _iconBtn(context, Icons.delete_outline, 3),
+          _iconBtn(context, Icons.account_balance_wallet_outlined, 4),
+
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: CircleAvatar(
+              backgroundColor: const Color(0xFFFFF3E0),
+              radius: 18,
+              child: Text("AA", style: TextStyle(color: Colors.brown[800], fontSize: 12, fontWeight: FontWeight.bold)),
             ),
-          ),
+          )
         ],
+      ),
+    );
+  }
+
+  Widget _iconBtn(BuildContext context, IconData icon, int index) {
+    final isSelected = selectedIndex == index;
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: () => onItemSelected(index),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF3E0) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 20, color: isSelected ? Colors.black : theme.iconTheme.color?.withOpacity(0.5)),
       ),
     );
   }

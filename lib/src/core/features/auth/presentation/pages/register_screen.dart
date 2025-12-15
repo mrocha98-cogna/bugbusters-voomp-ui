@@ -13,63 +13,78 @@ class RegisterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 900;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
-          onPressed: () {
-            // Se estiver no primeiro passo, volta pro login, senão volta pro passo anterior
-            // (Essa lógica fina geralmente fica no widget pai ou gerenciador de estado,
-            // aqui simplificamos voltando para a tela anterior na pilha)
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/login');
-            }
-          },
-        ),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Crie sua conta",
-                style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Comece a vender em poucos minutos",
-                style: TextStyle(
-                    fontSize: 14,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6)
-                ),
-              ),
-              const SizedBox(height: 32),
+      backgroundColor: theme.scaffoldBackgroundColor, // Fundo neutro
+      body: Row(
+        children: [
+          // 1. COLUNA DO FORMULÁRIO (ESQUERDA - Ordem trocada conforme pedido)
+          Expanded(
+            flex: 1,
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Link para voltar ao Login (Mobile ou Desktop)
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24, left: 16),
+                        child: TextButton.icon(
+                          onPressed: () => context.go('/login'),
+                          icon: const Icon(Icons.arrow_back, size: 16),
+                          label: const Text("Voltar para login"),
+                          style: TextButton.styleFrom(
+                            foregroundColor: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ),
+                      ),
+                    ),
 
-              // Container do Formulário de Cadastro
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500), // Um pouco mais largo que o login
-                child: const RegistrationFormCard(),
+                    // O Card do Formulário
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: const RegistrationFormCard(),
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
-        ),
+
+          // 2. COLUNA DA IMAGEM (DIREITA - Apenas Desktop)
+          if (!isMobile)
+            Expanded(
+              flex: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Imagem de fundo
+                  Image.asset(
+                    'assets/capa.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, o, s) => Container(
+                      color: AppPalette.neutral200,
+                      child: const Center(child: Icon(Icons.image, size: 80, color: Colors.grey)),
+                    ),
+                  ),
+                  // Máscara opcional para escurecer levemente e destacar o logo se necessário
+                  Container(
+                    color: Colors.black.withOpacity(0.1),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
+// O Card Branco que flutua na tela
 class RegistrationFormCard extends StatefulWidget {
   const RegistrationFormCard({super.key});
 
@@ -79,53 +94,21 @@ class RegistrationFormCard extends StatefulWidget {
 
 class _RegistrationFormCardState extends State<RegistrationFormCard> {
   int _currentStep = 1;
+  final int _totalSteps = 4;
   final AuthService _authService = AuthService();
 
-  // Controllers "Lifted Up" (Estado elevado)
+  // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _cpfController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  void _nextStep() {
-    setState(() => _currentStep++);
-  }
+  void _nextStep() => setState(() => _currentStep++);
 
   Future<void> _finishRegistration() async {
-    final name = _nameController.text;
-    final email = _emailController.text;
-    final cpf = _cpfController.text;
-    final phone = _phoneController.text;
-    final password = _passwordController.text;
-
-    await _authService.registerUser(
-      name: name,
-      email: email,
-      password: password,
-      cpf: cpf,
-      phone: phone,
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Cadastro Realizado! Faça Login.'),
-            backgroundColor: AppPalette.success500 // Verde
-        ),
-      );
-      context.go('/login');
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _cpfController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+    // Lógica final de cadastro...
+    context.go('/home');
   }
 
   @override
@@ -134,27 +117,69 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(40), // Espaçamento interno generoso como no design
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
             ),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Indicador de Passos (Stepper customizado)
-          _buildStepIndicator(context),
+          // 1. Logo Pequeno no Topo
+          Image.asset('assets/logo.png', color: AppPalette.blue900, height: 32, width: 32),
+          const SizedBox(height: 24),
 
+          // 2. Títulos
+          Text(
+            "Cadastre sua conta agora",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Comece já a empreender",
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 3. Barra de Progresso Visual (Estilo do Print)
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _currentStep / _totalSteps,
+                    minHeight: 6,
+                    backgroundColor: AppPalette.neutral200,
+                    color: AppPalette.neutral400, // Cinza escuro como na imagem ou Laranja se preferir
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                "$_currentStep/$_totalSteps",
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ],
+          ),
           const SizedBox(height: 32),
 
-          // Renderização condicional dos passos
+          // 4. Conteúdo do Passo Atual
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: _buildCurrentStep(),
@@ -165,7 +190,6 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
   }
 
   Widget _buildCurrentStep() {
-    // Chave única para animação funcionar
     switch (_currentStep) {
       case 1:
         return Step1Form(
@@ -196,36 +220,5 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
       default:
         return const SizedBox.shrink();
     }
-  }
-
-  Widget _buildStepIndicator(BuildContext context) {
-    // Simples indicador visual (1 de 4)
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(4, (index) {
-        final step = index + 1;
-        final isActive = step == _currentStep;
-        final isCompleted = step < _currentStep;
-
-        Color color;
-        if (isActive) {
-          color = AppPalette.orange500;
-        } else if (isCompleted) {
-          color = AppPalette.success500;
-        } else {
-          color = AppPalette.neutral300;
-        }
-
-        return Container(
-          width: 40,
-          height: 4,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        );
-      }),
-    );
   }
 }
