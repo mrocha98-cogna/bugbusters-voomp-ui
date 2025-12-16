@@ -2,10 +2,11 @@ import 'package:go_router/go_router.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/pages/home_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/pages/login_screen.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/pages/register_screen.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/products/presentation/pages/create_product_page.dart';
 
 class AppRouter {
   static final router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/home',
     routes: [
       GoRoute(
         path: '/login',
@@ -18,6 +19,10 @@ class AppRouter {
       GoRoute(
         path: '/home',
         builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: '/create-product',
+        builder: (context, state) => const CreateProductPage(),
       ),
     ],
   );
