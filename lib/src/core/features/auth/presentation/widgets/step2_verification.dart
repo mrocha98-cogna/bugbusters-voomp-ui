@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Necessário para filtrar apenas números
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:pinput/pinput.dart';import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class Step2Verification extends StatefulWidget {
@@ -17,52 +18,60 @@ class Step2Verification extends StatefulWidget {
 }
 
 class _Step2VerificationState extends State<Step2Verification> {
-  // 6 Controllers e 6 FocusNodes para manipular o foco entre os dígitos
-  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final TextEditingController _pinController = TextEditingController();
+  final AuthService _authService = AuthService();
 
-  // Estado para validar se todos os campos estão preenchidos
-  bool _isValid = false;
+  bool _isLoading = false;
+  bool _isResending = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Ouve mudanças em todos os controllers para validar o botão
-    for (var controller in _controllers) {
-      controller.addListener(_validateForm);
-    }
-  }
+  // Verifica o código na API
+  Future<void> _verifyCode() async {
+    final code = _pinController.text;
+    if (code.length != 6) return;
 
-  @override
-  void dispose() {
-    for (var c in _controllers) { c.dispose(); }
-    for (var f in _focusNodes) { f.dispose(); }
-    super.dispose();
-  }
+    setState(() => _isLoading = true);
 
-  void _validateForm() {
-    // Verifica se todos os campos tem pelo menos 1 caractere
-    final allFilled = _controllers.every((c) => c.text.isNotEmpty);
-    if (allFilled != _isValid) {
-      setState(() {
-        _isValid = allFilled;
-      });
-    }
-  }
+    final isValid = await _authService.validateVerificationCode(widget.email, code);
 
-  void _onDigitEntered(int index, String value) {
-    if (value.isNotEmpty) {
-      // Se digitou e não é o último, vai para o próximo
-      if (index < 5) {
-        _focusNodes[index + 1].requestFocus();
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (isValid) {
+        widget.onContinue();
       } else {
-        // Se é o último, tira o foco (fecha teclado)
-        _focusNodes[index].unfocus();
+        _pinController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Código inválido ou expirado.'),
+            backgroundColor: AppPalette.error500,
+          ),
+        );
       }
-    } else {
-      // Se apagou (ficou vazio) e não é o primeiro, volta para o anterior
-      if (index > 0) {
-        _focusNodes[index - 1].requestFocus();
+    }
+  }
+
+  Future<void> _resendCode() async {
+    setState(() => _isResending = true);
+    try {
+      final success = await _authService.sendVerificationCode(widget.email);
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Código reenviado com sucesso!'),
+              backgroundColor: Colors.green),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Erro ao reenviar. Tente novamente.'),
+              backgroundColor: AppPalette.error500),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isResending = false);
       }
     }
   }
@@ -71,16 +80,45 @@ class _Step2VerificationState extends State<Step2Verification> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center, // Centraliza tudo horizontalmente
-      children: [
+    // Tema padrão (linha inferior cinza)
+    final defaultPinTheme = PinTheme(
+      width: 50,
+      height: 55,
+      textStyle: TextStyle(
+          fontSize: 28,
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.bold),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: AppPalette.neutral300,
+            width: 2,
+          ),
+        ),
+      ),
+    );
 
-        // --- TEXTOS DE INSTRUÇÃO ---
+    // Tema focado (linha inferior laranja)
+    final focusedPinTheme = defaultPinTheme.copyDecorationWith(
+      border: const Border(
+        bottom: BorderSide(
+          color: AppPalette.orange500,
+          width: 2,
+        ),
+      ),
+    );
+
+    // Variável para controlar se o botão deve estar habilitado
+    final bool canSubmit = _pinController.text.length == 6 && !_isLoading && !_isResending;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
         Text(
-          "Por favor, digite o código que\nenviamos para o email:",
+          "Por favor, digite o código que enviamos para o email:",
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 20,
             height: 1.5,
             color: theme.colorScheme.onSurface.withOpacity(0.7),
           ),
@@ -90,115 +128,98 @@ class _Step2VerificationState extends State<Step2Verification> {
           widget.email,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.onSurface,
           ),
         ),
-
         const SizedBox(height: 32),
-
-        // --- INPUTS DE CÓDIGO (LINHA ÚNICA) ---
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(6, (index) {
-            return _buildSingleDigitInput(index, theme);
-          }),
+        Center(
+          child: Pinput(
+            length: 6,
+            controller: _pinController,
+            defaultPinTheme: defaultPinTheme,
+            focusedPinTheme: focusedPinTheme,
+            submittedPinTheme: defaultPinTheme,
+            onChanged: (value) {
+              setState(() {});
+            },
+          ),
         ),
-
         const SizedBox(height: 32),
-
-        // --- RODAPÉ "NÃO ENCONTROU?" ---
+        SizedBox(
+          width: 120,
+          child: _isResending
+              ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+              : TextButton(
+              onPressed: _resendCode,
+              child: Row(
+                children: [
+                  Text(
+                    "Reenviar",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(FontAwesomeIcons.paperPlane)
+                ],
+              )
+          ),
+        ),
+        const SizedBox(height: 16),
         Text(
           "Não encontrou?",
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          "Confira na aba Spam ou Promoções do\nseu e-mail.",
+          "Confira na aba Spam ou Promoções do seu e-mail.",
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 16,
             color: theme.colorScheme.onSurface.withOpacity(0.5),
           ),
         ),
-
         const SizedBox(height: 32),
-
-        // --- BOTÃO CONTINUAR ---
         SizedBox(
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: _isValid ? widget.onContinue : null,
+            // Se canSubmit for false, passamos null (desabilita visualmente e clique)
+            onPressed: canSubmit ? _verifyCode : null,
             style: ElevatedButton.styleFrom(
-              // Cor Laranja (conforme imagem) quando ativo
-              backgroundColor: _isValid ? AppPalette.orange500 : AppPalette.neutral300,
+              backgroundColor: AppPalette.orange500,
+              // Cor quando desabilitado
+              disabledBackgroundColor: AppPalette.neutral300,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: _isLoading
+                ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
+                : const Text(
               "Continuar",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 16, color: AppPalette.surfaceText, fontWeight: FontWeight.w600),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  // Widget auxiliar para cada dígito (Estilo Underline)
-  Widget _buildSingleDigitInput(int index, ThemeData theme) {
-    return SizedBox(
-      width: 40,
-      child: TextFormField(
-        controller: _controllers[index],
-        focusNode: _focusNodes[index],
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1, // Apenas 1 dígito
-
-        // Estilo do texto (Grande e Negrito como na imagem)
-        style: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onSurface,
-        ),
-
-        // Filtra para aceitar apenas dígitos
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-        ],
-
-        decoration: InputDecoration(
-          counterText: "", // Esconde o contador "0/1"
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-
-          // Borda habilitada (Linha cinza)
-          enabledBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppPalette.neutral400, width: 2),
-          ),
-
-          // Borda Focada (Linha preta ou laranja)
-          focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppPalette.neutral800, width: 2),
-          ),
-
-          // Borda sem foco (para garantir alinhamento)
-          border: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppPalette.neutral300),
-          ),
-        ),
-
-        onChanged: (value) => _onDigitEntered(index, value),
-      ),
     );
   }
 }

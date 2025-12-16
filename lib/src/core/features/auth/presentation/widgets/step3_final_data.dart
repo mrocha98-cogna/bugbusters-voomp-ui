@@ -31,10 +31,10 @@ class _Step3FinalDataState extends State<Step3FinalData> {
   String? _phoneError;
 
   // --- ESTADOS DE SENHA ---
-  bool _hasMinLength = false;
-  bool _hasUppercase = false;
-  bool _hasLowercase = false;
-  bool _hasDigits = false;
+  bool? _hasMinLength = null;
+  bool? _hasUppercase = null;
+  bool? _hasLowercase = null;
+  bool? _hasDigits = null;
 
   void _validatePassword(String value) {
     setState(() {
@@ -44,7 +44,6 @@ class _Step3FinalDataState extends State<Step3FinalData> {
       _hasDigits = value.contains(RegExp(r'[0-9]'));
     });
   }
-
 
   void _validateCpf(String value) {
     // Se o campo estiver vazio, limpa o erro (para não mostrar erro logo de cara se o user apagar tudo)
@@ -80,14 +79,20 @@ class _Step3FinalDataState extends State<Step3FinalData> {
     }
   }
 
-  bool get _isPasswordValid => _hasMinLength && _hasUppercase && _hasLowercase && _hasDigits;
+  bool get _isPasswordValid =>
+      (_hasMinLength ?? false) &&
+          (_hasUppercase ?? false) &&
+          (_hasLowercase ?? false) &&
+          (_hasDigits ?? false);
 
   bool get _isValid =>
       _isPasswordValid &&
-          widget.cpfController.text.replaceAll(RegExp(r'[^0-9]'), '').length == 11 &&
-          _cpfError == null &&
-          widget.phoneController.text.replaceAll(RegExp(r'[^0-9]'), '').length >= 10 &&
-          _phoneError == null;
+      widget.cpfController.text.replaceAll(RegExp(r'[^0-9]'), '').length ==
+          11 &&
+      _cpfError == null &&
+      widget.phoneController.text.replaceAll(RegExp(r'[^0-9]'), '').length >=
+          10 &&
+      _phoneError == null;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +112,8 @@ class _Step3FinalDataState extends State<Step3FinalData> {
             theme: theme,
             hint: "Digite seu CPF",
             errorText: _cpfError,
-            formatters: [CpfInputFormatter()], // Seu formatador customizado
+            formatters: [CpfInputFormatter()],
+            // Seu formatador customizado
             keyboardType: TextInputType.number,
             onChanged: _validateCpf,
           ),
@@ -121,7 +127,8 @@ class _Step3FinalDataState extends State<Step3FinalData> {
             theme: theme,
             hint: "(31) XXXXX-XXXX",
             errorText: _phoneError,
-            formatters: [PhoneInputFormatter()], // Seu formatador customizado
+            formatters: [PhoneInputFormatter()],
+            // Seu formatador customizado
             keyboardType: TextInputType.phone,
             onChanged: _validatePhone,
           ),
@@ -136,20 +143,24 @@ class _Step3FinalDataState extends State<Step3FinalData> {
             obscureText: _obscurePassword,
             style: TextStyle(color: theme.colorScheme.onSurface),
             onChanged: _validatePassword,
-            decoration: _inputDecoration(
-              hint: "Digite sua senha",
-              theme: theme,
-              hasError: false,
-            ).copyWith(
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: AppPalette.neutral500,
-                  size: 20,
+            decoration:
+                _inputDecoration(
+                  hint: "Digite sua senha",
+                  theme: theme,
+                  hasError: false,
+                ).copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: AppPalette.neutral500,
+                      size: 20,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
           ),
 
           const SizedBox(height: 20),
@@ -174,10 +185,22 @@ class _Step3FinalDataState extends State<Step3FinalData> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _buildRequirementItem("Pelo menos 1 caractere minúsculo", _hasLowercase, theme),
-                _buildRequirementItem("Pelo menos 1 caractere maiúsculo", _hasUppercase, theme),
+                _buildRequirementItem(
+                  "Pelo menos 1 caractere minúsculo",
+                  _hasLowercase,
+                  theme,
+                ),
+                _buildRequirementItem(
+                  "Pelo menos 1 caractere maiúsculo",
+                  _hasUppercase,
+                  theme,
+                ),
                 _buildRequirementItem("Pelo menos 1 número", _hasDigits, theme),
-                _buildRequirementItem("Pelo menos 8 caracteres", _hasMinLength, theme),
+                _buildRequirementItem(
+                  "Pelo menos 8 caracteres",
+                  _hasMinLength,
+                  theme,
+                ),
               ],
             ),
           ),
@@ -191,8 +214,12 @@ class _Step3FinalDataState extends State<Step3FinalData> {
             child: ElevatedButton(
               onPressed: _isValid ? widget.onFinish : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isValid ? AppPalette.orange500 : AppPalette.neutral300,
-                foregroundColor: _isValid ? Colors.white : AppPalette.neutral600,
+                backgroundColor: _isValid
+                    ? AppPalette.orange500
+                    : AppPalette.neutral300,
+                foregroundColor: _isValid
+                    ? Colors.white
+                    : AppPalette.neutral600,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -200,7 +227,9 @@ class _Step3FinalDataState extends State<Step3FinalData> {
               ),
               child: const Text(
                 "Continuar",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 16,
+                    color: AppPalette.surfaceText,
+                    fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -254,7 +283,7 @@ class _Step3FinalDataState extends State<Step3FinalData> {
                 ),
               ),
             ],
-          )
+          ),
       ],
     );
   }
@@ -270,15 +299,21 @@ class _Step3FinalDataState extends State<Step3FinalData> {
     );
   }
 
-  Widget _buildRequirementItem(String text, bool isMet, ThemeData theme) {
-    final color = isMet ? AppPalette.success500 : AppPalette.error500;
-    final icon = isMet ? Icons.check_circle_outline : Icons.cancel_outlined;
+  Widget _buildRequirementItem(String text, bool? isMet, ThemeData theme) {
+    final color = isMet == null ? AppPalette.neutral500 : isMet
+        ? AppPalette.success500
+        : AppPalette.error500;
+    final icon = isMet == null ? null : isMet
+        ? Icons.check_circle_outline
+        : Icons.cancel_outlined;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: color),
+          icon != null
+            ? Icon(icon, size: 18, color: color)
+            : Text('\u2022'),
           const SizedBox(width: 8),
           Text(
             text,

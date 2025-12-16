@@ -5,12 +5,14 @@ class Step1Form extends StatefulWidget {
   final TextEditingController nameController;
   final TextEditingController emailController;
   final VoidCallback onContinue;
+  final bool isLoading; // 1. Adicionamos o parâmetro aqui
 
   const Step1Form({
     super.key,
     required this.nameController,
     required this.emailController,
     required this.onContinue,
+    this.isLoading = false, // Valor padrão false
   });
 
   @override
@@ -20,84 +22,94 @@ class Step1Form extends StatefulWidget {
 class _Step1FormState extends State<Step1Form> {
   final _formKey = GlobalKey<FormState>();
 
-  // Valida se os campos estão preenchidos para mudar a cor do botão
-  bool get _isValid =>
-      widget.nameController.text.trim().length > 3 &&
-          widget.emailController.text.contains('@');
+  void _submit() {
+    if (_formKey.currentState?.validate() ?? false) {
+      widget.onContinue();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Form(
       key: _formKey,
-      onChanged: () => setState(() {}), // Atualiza UI para habilitar/desabilitar botão
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          // --- CAMPO NOME ---
           _buildLabel("Nome Completo", theme),
           const SizedBox(height: 8),
           TextFormField(
             controller: widget.nameController,
             style: TextStyle(color: theme.colorScheme.onSurface),
+            textInputAction: TextInputAction.next,
             decoration: _inputDecoration(
-              hint: "Digite seu nome",
+              hint: "Digite seu nome completo",
               theme: theme,
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty) return 'Nome obrigatório';
+              if (value == null || value.trim().isEmpty) {
+                return 'Por favor, insira seu nome.';
+              }
+              if (value.trim().split(' ').length < 2) {
+                return 'Insira nome e sobrenome.';
+              }
               return null;
             },
           ),
-
           const SizedBox(height: 20),
-
-          // --- CAMPO EMAIL ---
           _buildLabel("E-mail", theme),
           const SizedBox(height: 8),
           TextFormField(
             controller: widget.emailController,
             style: TextStyle(color: theme.colorScheme.onSurface),
             keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _submit(),
             decoration: _inputDecoration(
-              hint: "Digite seu e-mail",
+              hint: "exemplo@email.com",
               theme: theme,
             ),
             validator: (value) {
-              if (value == null || !value.contains('@')) return 'E-mail inválido';
+              if (value == null || value.isEmpty) {
+                return 'O e-mail é obrigatório.';
+              }
+              final emailRegex = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+              if (!emailRegex.hasMatch(value)) {
+                return 'Insira um e-mail válido.';
+              }
               return null;
             },
           ),
-
-          const SizedBox(height: 8),
-          Text(
-            "ex: seunome@gmail.com",
-            style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.5)),
-          ),
-
           const SizedBox(height: 32),
-
-          // --- BOTÃO CONTINUAR ---
           SizedBox(
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _isValid ? widget.onContinue : null,
+              // 2. Se estiver carregando, desabilita o clique (null)
+              onPressed: widget.isLoading ? null : _submit,
               style: ElevatedButton.styleFrom(
-                // Se inválido: Cinza (como na imagem). Se válido: Laranja ou Preto (conforme sua preferência)
-                backgroundColor: _isValid ? AppPalette.orange500 : AppPalette.neutral300,
-                foregroundColor: _isValid ? Colors.white : AppPalette.neutral600,
+                backgroundColor: widget.isLoading ? AppPalette.neutral300 : AppPalette.orange500,
+                foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
+              // 3. Mostra o loading ou o texto
+              child: widget.isLoading
+                  ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+                  : const Text(
                 "Continuar",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 16, color: AppPalette.surfaceText, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -106,7 +118,6 @@ class _Step1FormState extends State<Step1Form> {
     );
   }
 
-  // Helper para criar o Label acima do input (Estilo da imagem)
   Widget _buildLabel(String text, ThemeData theme) {
     return Text(
       text,
@@ -118,32 +129,29 @@ class _Step1FormState extends State<Step1Form> {
     );
   }
 
-  // Helper para o estilo da caixa de texto (Borda arredondada suave)
-  InputDecoration _inputDecoration({required String hint, required ThemeData theme}) {
+  InputDecoration _inputDecoration(
+      {required String hint, required ThemeData theme}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
       filled: true,
-      fillColor: Colors.transparent, // Fundo transparente pois a borda define a caixa
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      // Borda Padrão (Cinza claro)
+      fillColor: Colors.transparent,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: AppPalette.neutral300),
+        borderSide: const BorderSide(color: AppPalette.neutral300),
       ),
-      // Borda Focada (Preto ou Laranja)
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppPalette.neutral800, width: 1.5),
+        borderSide: const BorderSide(color: AppPalette.neutral800),
       ),
-      // Borda Erro
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppPalette.error500),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppPalette.error500, width: 1.5),
+        borderSide: const BorderSide(color: AppPalette.error500),
       ),
     );
   }

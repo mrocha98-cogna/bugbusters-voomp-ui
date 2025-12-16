@@ -1,56 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/widgets/step4_onboarding.dart';
-import 'package:voomp_sellers_rebranding/src/shared/widgets/custom_button.dart';
+import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 void main() {
-  testWidgets('Step4Onboarding obriga seleção de objetivo', (WidgetTester tester) async {
-    bool finished = false;
+  testWidgets('Step4Onboarding obriga seleção de objetivo e envia dados corretamente',
+          (WidgetTester tester) async {
+        // Variáveis para capturar os dados retornados pelo widget
+        bool finished = false;
+        String? capturedHowKnew;
+        bool? capturedAlreadySellOnline;
+        String? capturedGoal;
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Step4Onboarding(
-          onFinish: () => finished = true,
-        ),
-      ),
-    ));
+        await tester.pumpWidget(MaterialApp(
+          home: Scaffold(
+            body: Step4Onboarding(
+              onFinish: ({
+                required String howKnew,
+                required bool alreadySellOnline,
+                required String goal,
+              }) {
+                finished = true;
+                capturedHowKnew = howKnew;
+                capturedAlreadySellOnline = alreadySellOnline;
+                capturedGoal = goal;
+              },
+            ),
+          ),
+        ));
 
-    final btnFinder = find.widgetWithText(CustomButton, 'Continuar');
+        // Identificamos o botão pelo texto "Finalizar Cadastro"
+        final btnFinder = find.widgetWithText(ElevatedButton, 'Finalizar Cadastro');
 
-    // 1. Tenta clicar sem selecionar nada (Objetivo é obrigatório)
-    await tester.tap(btnFinder);
-    await tester.pump();
+        // 1. Verifica estado inicial (Botão deve estar desabilitado visualmente ou não funcional)
+        // O widget que implementamos usa a propriedade onPressed: _isValid ? _submit : null
+        // Portanto, se não é válido, o botão está disabled.
+        final buttonWidget = tester.widget<ElevatedButton>(btnFinder);
+        expect(buttonWidget.onPressed, isNull, reason: "Botão deve estar desabilitado inicialmente");
 
-    // Deve mostrar mensagem de erro (SnackBar ou Texto de erro)
-    expect(finished, isFalse);
-    expect(find.text('Campo obrigatório'), findsOneWidget);
+        // 2. Interage com o Radio Button "Sim" (Já vende pela internet)
+        await tester.tap(find.text('Sim'));
+        await tester.pump();
 
-    // 2. Seleciona Dropdown (Opcional, mas testamos interação)
-    // DropdownFormField é complexo de testar interação de clique exato no item,
-    // mas podemos verificar se ele existe.
-    expect(find.text('Como conheceu a Voomp Creators? (opcional)'), findsOneWidget);
+        // 3. Seleciona o Objetivo "Vender meus produtos"
+        // O texto no widget tem uma quebra de linha: "Vender meus\nprodutos"
+        final cardVenderFinder = find.text("Vender meus\nprodutos");
+        expect(cardVenderFinder, findsOneWidget);
 
-    // 3. Seleciona Radio Button "Sim"
-    await tester.tap(find.text('Sim'));
-    await tester.pump();
+        await tester.tap(cardVenderFinder);
+        await tester.pump();
 
-    // Botão ainda deve falhar pois Objetivo é nulo
-    await tester.tap(btnFinder);
-    await tester.pump();
-    expect(finished, isFalse);
+        // 4. Agora o formulário é válido, o botão deve estar habilitado
+        final buttonWidgetEnabled = tester.widget<ElevatedButton>(btnFinder);
+        expect(buttonWidgetEnabled.onPressed, isNotNull, reason: "Botão deve habilitar após selecionar objetivo");
 
-    // 4. Seleciona Objetivo "Vender meus produtos"
-    // Procuramos pelo texto dentro do Card
-    await tester.tap(find.textContaining('Vender meus\nprodutos'));
-    await tester.pump();
+        // 5. Clica no botão para finalizar
+        await tester.tap(btnFinder);
+        await tester.pump();
 
-    // Agora o erro "Campo obrigatório" deve sumir
-    expect(find.text('Campo obrigatório'), findsNothing);
-
-    // Clica em Continuar
-    await tester.tap(btnFinder);
-    await tester.pump();
-
-    expect(finished, isTrue);
-  });
+        // 6. Verifica se os dados foram enviados corretamente
+        expect(finished, isTrue);
+        expect(capturedGoal, 'sell'); // Valor interno mapeado no widget
+        expect(capturedAlreadySellOnline, isTrue);
+        expect(capturedHowKnew, 'notInformed'); // Valor padrão pois não selecionamos o dropdown
+      });
 }

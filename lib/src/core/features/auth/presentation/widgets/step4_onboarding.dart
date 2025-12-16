@@ -2,19 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class Step4Onboarding extends StatefulWidget {
-  final VoidCallback onFinish;
+  // Alteramos o callback para devolver os dados preenchidos
+  final Function({
+  required String howKnew,
+  required bool alreadySellOnline,
+  required String goal,
+  }) onFinish;
 
-  const Step4Onboarding({super.key, required this.onFinish});
+  const Step4Onboarding({
+    super.key,
+    required this.onFinish,
+  });
 
   @override
   State<Step4Onboarding> createState() => _Step4OnboardingState();
 }
 
 class _Step4OnboardingState extends State<Step4Onboarding> {
-  // Estados
-  String? _selectedSource;
-  bool? _salesExperience; // true = Sim, false = Não
-  String? _selectedObjective;
+  // Inicializamos com valores padrão ou nulos
+  String? _selectedSource; // howKnew
+  bool _salesExperience = false; // alreadySellOnline (default false)
+  String? _selectedObjective; // goal
 
   // Lista de Opções do Dropdown
   final List<String> _sourceOptions = [
@@ -29,21 +37,29 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
     "Outros"
   ];
 
-  // Validação simples: objetivo é obrigatório? (Na imagem parece que o dropdown e radio são opcionais, mas o objetivo é seleção principal)
-  // Vamos deixar o botão habilitado se o objetivo for selecionado.
+  // Apenas o objetivo parece ser estritamente obrigatório para o fluxo
   bool get _isValid => _selectedObjective != null;
+
+  void _submit() {
+    if (_isValid) {
+      widget.onFinish(
+        howKnew: _selectedSource ?? "notInformed",
+        alreadySellOnline: _salesExperience,
+        goal: _selectedObjective!,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Cor bege claro para cards desabilitados (baseado na imagem)
+    // Cor bege claro para cards desabilitados
     final unselectedCardColor = const Color(0xFFFFF5EB);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
         // --- DROPDOWN: COMO CONHECEU ---
         _buildLabel("Como conheceu a Voomp Creators?", optional: true, theme: theme),
         const SizedBox(height: 8),
@@ -51,14 +67,12 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
           value: _selectedSource,
           icon: const Icon(Icons.keyboard_arrow_down),
           elevation: 2,
-          // Fundo branco para o menu suspenso
           dropdownColor: Colors.white,
-          // Altura máxima para exibir aprox 4 itens (4 items * ~48px = ~200)
           menuMaxHeight: 250,
           style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
           decoration: _inputDecoration(theme),
           hint: Text(
-            "Selecione uma opção", // Ou "Não quero informar" se for o default
+            "Selecione uma opção",
             style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
           ),
           items: _sourceOptions.map((String value) {
@@ -83,7 +97,7 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
               label: "Sim",
               value: true,
               groupValue: _salesExperience,
-              onChanged: (v) => setState(() => _salesExperience = v),
+              onChanged: (v) => setState(() => _salesExperience = v ?? false),
               theme: theme,
             ),
             const SizedBox(width: 24),
@@ -91,7 +105,7 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
               label: "Não",
               value: false,
               groupValue: _salesExperience,
-              onChanged: (v) => setState(() => _salesExperience = v),
+              onChanged: (v) => setState(() => _salesExperience = v ?? false),
               theme: theme,
             ),
           ],
@@ -100,14 +114,14 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
         const SizedBox(height: 20),
 
         // --- CARDS: OBJETIVO ---
-        _buildLabel("Seu objetivo na Voomp é:", theme: theme), // Sem opcional aqui
+        _buildLabel("Seu objetivo na Voomp é:", theme: theme),
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: _buildObjectiveCard(
                 label: "Vender meus\nprodutos",
-                value: "seller",
+                value: "sell", // Ajustado para bater com o DTO ("sell")
                 unselectedColor: unselectedCardColor,
                 theme: theme,
               ),
@@ -131,7 +145,7 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: _isValid ? widget.onFinish : null,
+            onPressed: _isValid ? _submit : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: _isValid ? AppPalette.orange500 : AppPalette.neutral300,
               foregroundColor: _isValid ? Colors.white : AppPalette.neutral600,
@@ -141,8 +155,8 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
               ),
             ),
             child: const Text(
-              "Continuar",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              "Finalizar Cadastro", // Texto alterado para fazer sentido
+              style: TextStyle(fontSize: 16, color: AppPalette.surfaceText, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -179,7 +193,7 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
   Widget _buildRadioButton({
     required String label,
     required bool value,
-    required bool? groupValue,
+    required bool groupValue,
     required Function(bool?) onChanged,
     required ThemeData theme,
   }) {
@@ -194,11 +208,10 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
             value: value,
             groupValue: groupValue,
             onChanged: onChanged,
-            activeColor: AppPalette.orange500, // Cor do "miolo" selecionado
-            // Cor da borda quando não selecionado
+            activeColor: AppPalette.orange500,
             fillColor: MaterialStateProperty.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
-                return const Color(0xFF5E3F29); // Um marrom escuro/laranja queimado conforme imagem
+                return const Color(0xFF5E3F29);
               }
               return theme.colorScheme.onSurface;
             }),
@@ -226,14 +239,12 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
     return GestureDetector(
       onTap: () => setState(() => _selectedObjective = value),
       child: Container(
-        height: 80, // Altura fixa para alinhar
+        height: 80,
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          // SELECIONADO: Fundo branco (ou surface), NÃO SELECIONADO: Bege
           color: isSelected ? theme.cardTheme.color : unselectedColor,
           borderRadius: BorderRadius.circular(8),
-          // Borda Laranja apenas se selecionado
           border: isSelected ? Border.all(color: AppPalette.orange500, width: 1.5) : null,
         ),
         child: Text(
@@ -242,7 +253,6 @@ class _Step4OnboardingState extends State<Step4Onboarding> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
-            // Texto Preto sempre (conforme imagem 3), ou laranja se preferir destacar
             color: Colors.black,
           ),
         ),

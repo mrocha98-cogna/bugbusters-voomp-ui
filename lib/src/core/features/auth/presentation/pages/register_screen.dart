@@ -5,6 +5,7 @@ import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/wid
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/widgets/step3_final_data.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/widgets/step4_onboarding.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class RegisterScreen extends StatelessWidget {
@@ -16,68 +17,70 @@ class RegisterScreen extends StatelessWidget {
     final isMobile = MediaQuery.of(context).size.width < 900;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor, // Fundo neutro
-      body: Row(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      // Estrutura de Stack idêntica ao Login: Imagem Fundo + Overlay + Conteúdo
+      body: Stack(
         children: [
-          // 1. COLUNA DO FORMULÁRIO (ESQUERDA - Ordem trocada conforme pedido)
-          Expanded(
-            flex: 1,
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Link para voltar ao Login (Mobile ou Desktop)
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 24, left: 16),
-                        child: TextButton.icon(
-                          onPressed: () => context.go('/login'),
-                          icon: const Icon(Icons.arrow_back, size: 16),
-                          label: const Text("Voltar para login"),
-                          style: TextButton.styleFrom(
-                            foregroundColor: theme.colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // O Card do Formulário
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 480),
-                      child: const RegistrationFormCard(),
-                    ),
-                  ],
-                ),
+          // 1. IMAGEM DE FUNDO (Ocupa toda a tela, cortada corretamente)
+          Positioned.fill(
+            child: Image.asset(
+              'assets/capa.png',
+              fit: BoxFit.cover, // Garante que preencha tudo (Crop)
+              alignment: Alignment.center, // Centraliza o corte
+              errorBuilder: (c, o, s) => Container(
+                color: AppPalette.neutral200,
+                child: const Center(
+                    child: Icon(Icons.image, size: 80, color: Colors.grey)),
               ),
             ),
           ),
 
-          // 2. COLUNA DA IMAGEM (DIREITA - Apenas Desktop)
-          if (!isMobile)
-            Expanded(
-              flex: 1,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Imagem de fundo
-                  Image.asset(
-                    'assets/capa.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, o, s) => Container(
-                      color: AppPalette.neutral200,
-                      child: const Center(child: Icon(Icons.image, size: 80, color: Colors.grey)),
-                    ),
+          // 3. CONTEÚDO (Formulário)
+          Align(
+            // No mobile centraliza, no Desktop alinha à esquerda (conforme padrão login)
+            alignment: isMobile ? Alignment.center : Alignment.centerLeft,
+            child: SizedBox(
+              width: isMobile ? double.infinity : 600,
+              height: double.infinity,
+              child: Center(
+                child: SingleChildScrollView(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: AlignmentGeometry.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 64, left: 0),
+                          child: TextButton.icon(
+                            onPressed: () => context.go('/login'),
+                            icon: const Icon(Icons.arrow_back,
+                                size: 16, color: AppPalette.surfaceText),
+                            label: const Text(
+                              "Voltar para login",
+                              style: TextStyle(color: AppPalette.surfaceText),
+                            ),
+                            style: TextButton.styleFrom(
+                              // Fundo leve para garantir leitura sobre a imagem se necessário
+                              backgroundColor: AppPalette.orange500,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // O Card do Formulário
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: const RegistrationFormCard(),
+                      ),
+                    ],
                   ),
-                  // Máscara opcional para escurecer levemente e destacar o logo se necessário
-                  Container(
-                    color: Colors.black.withOpacity(0.1),
-                  ),
-                ],
+                ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -94,6 +97,7 @@ class RegistrationFormCard extends StatefulWidget {
 
 class _RegistrationFormCardState extends State<RegistrationFormCard> {
   int _currentStep = 1;
+  bool _isGeneratingCode = false;
   final int _totalSteps = 4;
   final AuthService _authService = AuthService();
 
@@ -103,12 +107,60 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
   final TextEditingController _cpfController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  late bool _alreadySellOnline;
+  late String _goal;
+  late String _howKnew;
+
+  // Métodos
 
   void _nextStep() => setState(() => _currentStep++);
 
   Future<void> _finishRegistration() async {
-    // Lógica final de cadastro...
-    context.go('/home');
+    final name = _nameController.text;
+    final email = _emailController.text;
+    final cpf = _cpfController.text;
+    final phone = "55${_phoneController.text}";
+    final password = _passwordController.text;
+    final alreadySellOnline = _alreadySellOnline;
+    final goal = _goal;
+    final howKnew = _howKnew;
+
+    var result = await _authService.registerUser(
+      name: name,
+      email: email,
+      password: password,
+      cpf: cpf,
+      phone: phone,
+      alreadySellOnline: alreadySellOnline,
+      goal: goal,
+      howKnew: howKnew,
+    );
+
+    if (mounted && result) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Cadastro Salvo! Faça Login.'),
+            backgroundColor: Colors.green),
+      );
+      final newUser = User(
+        id: '', // O ID real está salvo no SharedPreferences/Backend
+        name: name,
+        email: email,
+        password: password,
+        cpf: cpf,
+        phone: phone,
+        userOnboardingId: '',
+      );
+
+      // Enviamos o objeto via 'extra'
+      context.go('/home', extra: newUser);
+    }else{
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Ops! Houve uma falha no registro.'),
+            backgroundColor: AppPalette.error500),
+      );
+    }
   }
 
   @override
@@ -117,31 +169,31 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.all(40), // Espaçamento interno generoso como no design
+      padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
+          // Sombra ajustada para o fundo de imagem
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Logo Pequeno no Topo
-          Image.asset('assets/logo.png', color: AppPalette.blue900, height: 32, width: 32),
+          Image.asset('assets/logo_com_texto.png',
+              height: 50, width: 200),
           const SizedBox(height: 24),
 
           // 2. Títulos
           Text(
             "Cadastre sua conta agora",
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 20, // Ajustado para 24 igual ao Login
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,
             ),
@@ -150,13 +202,13 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
           Text(
             "Comece já a empreender",
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32), // Espaçamento um pouco maior
 
-          // 3. Barra de Progresso Visual (Estilo do Print)
+          // 3. Barra de Progresso Visual
           Row(
             children: [
               Expanded(
@@ -166,14 +218,15 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
                     value: _currentStep / _totalSteps,
                     minHeight: 6,
                     backgroundColor: AppPalette.neutral200,
-                    color: AppPalette.neutral400, // Cinza escuro como na imagem ou Laranja se preferir
+                    color: AppPalette.orange500,
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 "$_currentStep/$_totalSteps",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                style:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
             ],
           ),
@@ -196,7 +249,26 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
           key: const ValueKey(1),
           nameController: _nameController,
           emailController: _emailController,
-          onContinue: _nextStep,
+          isLoading: _isGeneratingCode,
+          onContinue: () async{
+            setState(() => _isGeneratingCode = true);
+            final success = await _authService.sendVerificationCode(_emailController.text.trim());
+
+            setState(() => _isGeneratingCode = false);
+
+            if (success) {
+              _nextStep();
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Erro ao enviar código. Verifique o e-mail.'),
+                    backgroundColor: AppPalette.error500,
+                  ),
+                );
+              }
+            }
+          },
         );
       case 2:
         return Step2Verification(
@@ -215,7 +287,14 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
       case 4:
         return Step4Onboarding(
           key: const ValueKey(4),
-          onFinish: _finishRegistration,
+          onFinish: ({required howKnew, required alreadySellOnline, required goal}) {
+            setState(() {
+              _howKnew = howKnew;
+              _alreadySellOnline = alreadySellOnline;
+              _goal = goal;
+            });
+            _finishRegistration();
+          },
         );
       default:
         return const SizedBox.shrink();

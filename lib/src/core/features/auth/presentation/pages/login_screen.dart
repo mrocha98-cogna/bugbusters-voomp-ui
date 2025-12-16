@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -13,49 +14,57 @@ class LoginScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Row(
+      // Usamos Stack para empilhar elementos (Imagem no fundo, formulário por cima)
+      body: Stack(
         children: [
-          // 1. COLUNA DO FORMULÁRIO (ESQUERDA)
-          Expanded(
-            flex: 1,
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Container limitado para não ficar muito largo em telas grandes
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 480),
-                      child: const LoginFormCard(),
-                    ),
-                  ],
+          Positioned.fill(
+            child: Image.asset(
+              'assets/capa.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (c, o, s) => Container(
+                color: AppPalette.neutral200,
+                child: const Center(
+                  child: Icon(Icons.image, size: 80, color: Colors.grey),
                 ),
               ),
             ),
           ),
 
-          // 2. COLUNA DA IMAGEM (DIREITA - Apenas Desktop)
-          if (!isMobile)
-            Expanded(
-              flex: 1,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    'assets/capa.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, o, s) => Container(
-                      color: AppPalette.neutral200,
-                      child: const Center(
-                          child: Icon(Icons.image, size: 80, color: Colors.grey)),
-                    ),
+          // 2. OVERLAY ESCURO (Opcional: melhora o contraste do card sobre a imagem)
+          // Positioned.fill(
+          //   child: Container(
+          //     color: Colors.black.withOpacity(0.4), // 40% de opacidade preta
+          //   ),
+          // ),
+
+          // 3. CONTEÚDO (Formulário à Esquerda)
+          Align(
+            // No mobile centraliza, no Desktop alinha à esquerda
+            alignment: isMobile ? Alignment.center : Alignment.centerLeft,
+            child: SizedBox(
+              // No Desktop, fixamos uma largura para a "coluna" do formulário
+              // No Mobile, ocupa a largura total
+              width: isMobile ? double.infinity : 600,
+              height: double.infinity,
+              // Opcional: Se quiser que o fundo atrás do card seja levemente branco/fosco
+              // color: isMobile ? Colors.transparent : Colors.white.withOpacity(0.9),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: const LoginFormCard(),
+                      ),
+                    ],
                   ),
-                  // Máscara opcional
-                  Container(color: Colors.black.withOpacity(0.1)),
-                ],
+                ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -63,6 +72,7 @@ class LoginScreen extends StatelessWidget {
 }
 
 class LoginFormCard extends StatefulWidget {
+// ... (O restante do código da classe LoginFormCard permanece igual)
   const LoginFormCard({super.key});
 
   @override
@@ -73,41 +83,92 @@ class _LoginFormCardState extends State<LoginFormCard> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   bool _obscureText = true;
   bool _isLoading = false;
-  final AuthService _authService = AuthService();
+  String? _emailError;
+  String? _passwordError;
 
-  // Validação simples para habilitar/desabilitar botão visualmente
-  bool get _isValid =>
-      _emailController.text.contains('@') &&
-          _passwordController.text.length >= 3;
+  bool _isEmailValid(String email) {
+    final RegExp emailRegex = RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+    );
+    return emailRegex.hasMatch(email);
+  }
+
+  late bool _isFormFilled;
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
 
-      final success = await _authService.login(
-        _emailController.text,
-        _passwordController.text,
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+    });
+
+    bool hasLocalError = false;
+
+    // 2. Validação LOCAL (Formato e campos vazios)
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty) {
+      _emailError = 'O campo e-mail é obrigatório';
+      hasLocalError = true;
+    } else if (!_isEmailValid(email)) {
+      _emailError = 'E-mail inválido';
+      hasLocalError = true;
+    }
+
+    if (password.isEmpty) {
+      _passwordError = 'Digite sua senha';
+      hasLocalError = true;
+    }
+
+    // Se houve erro local, mostra Toast e para a execução
+    if (hasLocalError) {
+      setState(() {}); // Reconstrói para mostrar as mensagens customizadas abaixo dos campos
+      _formKey.currentState?.validate(); // Dispara a borda vermelha do TextFormField
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verifique os campos inválidos.'),
+          backgroundColor: AppPalette.error500,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
+      return;
+    }
 
-      setState(() => _isLoading = false);
+    // 3. Validação no SERVIDOR (AuthService)
+    setState(() => _isLoading = true);
 
-      if (mounted) {
-        if (success) {
-          context.go('/home');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Credenciais inválidas.'),
-              backgroundColor: AppPalette.error500,
-            ),
-          );
-        }
+    // Simula ou chama o serviço real
+    final user = await _authService.login(email, password);
+
+    setState(() => _isLoading = false);
+
+    if (mounted) {
+      if (user != null) {
+        context.go('/home', extra: user);
+      } else {
+        // Erro retornado pelo backend (ex: senha incorreta ou usuário não encontrado)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('E-mail ou senha incorretos.'),
+            backgroundColor: AppPalette.error500,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
+  }
+
+  @override
+  void initState() {
+    _isFormFilled = _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+    super.initState();
   }
 
   @override
@@ -120,30 +181,25 @@ class _LoginFormCardState extends State<LoginFormCard> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        // Sombra suave igual ao cadastro
         boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
+          // Sombra um pouco mais forte para destacar do fundo da imagem
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
         ],
       ),
       child: Form(
         key: _formKey,
-        onChanged: () => setState(() {}), // Atualiza estado do botão
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start, // Alinha labels à esquerda
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Logo
             Center(
-              child: Image.asset('assets/logo.png', color: AppPalette.blue900, height: 40, width: 40),
+              child: Image.asset('assets/logo_com_texto.png', height: 50, width: 200),
             ),
             const SizedBox(height: 32),
-
-            // Títulos
             Center(
               child: Text(
                 "Bem-vindo(a) de volta!",
@@ -165,8 +221,6 @@ class _LoginFormCardState extends State<LoginFormCard> {
               ),
             ),
             const SizedBox(height: 40),
-
-            // --- CAMPO E-MAIL ---
             _buildLabel("E-mail", theme),
             const SizedBox(height: 8),
             TextFormField(
@@ -174,19 +228,29 @@ class _LoginFormCardState extends State<LoginFormCard> {
               style: TextStyle(color: theme.colorScheme.onSurface),
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              // Ao digitar, limpamos o erro visual para melhor UX
+              onChanged: (v) {
+                if (_emailError != null){
+                  _emailError = null;
+                }
+                _isFormFilled = _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+                setState(() { });
+              },
               decoration: _inputDecoration(
                 hint: "Digite seu e-mail",
                 theme: theme,
               ),
               validator: (value) {
-                if (value == null || !value.contains('@')) return 'E-mail inválido';
-                return null;
+                setState(() {
+                  _isFormFilled = _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+                });
+                return _emailError != null ? '' : null;
               },
             ),
+            if (_emailError != null)
+              _buildCustomErrorRow(_emailError!),
 
             const SizedBox(height: 20),
-
-            // --- CAMPO SENHA ---
             _buildLabel("Senha", theme),
             const SizedBox(height: 8),
             TextFormField(
@@ -195,6 +259,14 @@ class _LoginFormCardState extends State<LoginFormCard> {
               style: TextStyle(color: theme.colorScheme.onSurface),
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _submit(),
+              onChanged: (v) {
+                if (_passwordError != null){
+                  _passwordError = null;
+                }
+
+                _isFormFilled = _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+                setState(() { });
+              },
               decoration: _inputDecoration(
                 hint: "Digite sua senha",
                 theme: theme,
@@ -208,12 +280,14 @@ class _LoginFormCardState extends State<LoginFormCard> {
                 ),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Digite sua senha';
-                return null;
+                setState(() {
+                  _isFormFilled = _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+                });
+                return _passwordError != null ? '' : null;
               },
             ),
-
-            // Esqueceu a senha
+            if (_passwordError != null)
+              _buildCustomErrorRow(_passwordError!),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -227,18 +301,15 @@ class _LoginFormCardState extends State<LoginFormCard> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // --- BOTÃO ENTRAR ---
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: (_isValid && !_isLoading) ? _submit : null,
+                onPressed: _isLoading || !_isFormFilled ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isValid ? AppPalette.neutral800 : AppPalette.neutral300,
-                  foregroundColor: _isValid ? Colors.white : AppPalette.neutral600,
+                  backgroundColor: _isFormFilled ? AppPalette.orange500 : AppPalette.neutral300,
+                  foregroundColor: _isFormFilled ? Colors.black : AppPalette.neutral600,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -259,7 +330,6 @@ class _LoginFormCardState extends State<LoginFormCard> {
 
             const SizedBox(height: 24),
 
-            // Rodapé Cadastro
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -285,7 +355,7 @@ class _LoginFormCardState extends State<LoginFormCard> {
     );
   }
 
-  // --- REUTILIZANDO O ESTILO EXATO DO STEP 1 ---
+  // --- MÉTODOS AUXILIARES ---
 
   Widget _buildLabel(String text, ThemeData theme) {
     return Text(
@@ -298,6 +368,27 @@ class _LoginFormCardState extends State<LoginFormCard> {
     );
   }
 
+  // Novo widget para o erro com ícone (Conforme imagem)
+  Widget _buildCustomErrorRow(String error) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Row(
+        children: [
+          const Icon(Icons.error_rounded, color: AppPalette.error500, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            error,
+            style: const TextStyle(
+              color: AppPalette.error500,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   InputDecoration _inputDecoration({required String hint, required ThemeData theme}) {
     return InputDecoration(
       hintText: hint,
@@ -305,6 +396,8 @@ class _LoginFormCardState extends State<LoginFormCard> {
       filled: true,
       fillColor: Colors.transparent,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      // Esconde o texto de erro padrão do Flutter para usarmos o nosso customizado
+      errorStyle: const TextStyle(height: 0),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppPalette.neutral300),

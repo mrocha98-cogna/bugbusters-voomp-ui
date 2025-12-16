@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/theme_controller.dart';
 
@@ -16,21 +18,34 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  String _userName = "Vendedor";
+  late String _userName;
   final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUser();
+    });
   }
 
   void _loadUser() async {
-    final name = await _authService.getUserName();
-    if (name != null && mounted) {
-      setState(() {
-        _userName = name;
-      });
+    final extra = GoRouterState.of(context).extra;
+
+    if (extra != null && extra is User) {
+      if (mounted) {
+        setState(() {
+          _userName = extra.name;
+        });
+      }
+    } else {
+      // 2. Se não veio pela rota (ex: login normal), busca do AuthService (SharedPreferences)
+      final user = await _authService.getUserInformations();
+      if (mounted) {
+        setState(() {
+          _userName = user.name;
+        });
+      }
     }
   }
 
@@ -274,7 +289,7 @@ class ProfileTab extends StatelessWidget {
                         leading: const Icon(Icons.logout, color: Colors.red),
                         title: const Text("Sair da conta", style: TextStyle(color: Colors.red)),
                         onTap: () {
-                          // Implementar logout
+                          context.go('/login');
                         },
                       ),
                     ],
@@ -498,7 +513,7 @@ class _IdentityValidationCard extends StatelessWidget {
               onPressed: () {},
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppPalette.orange500,
-                foregroundColor: Colors.white,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 elevation: 0,
               ),
@@ -803,7 +818,7 @@ class _SidebarMenu extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 24),
-          const Icon(Icons.incomplete_circle, color: AppPalette.orange500, size: 32),
+          Image.asset('assets/logo.png', color: AppPalette.orange500, width: 32, height: 32),
           const SizedBox(height: 40),
 
           _iconBtn(context, Icons.home_filled, 0),

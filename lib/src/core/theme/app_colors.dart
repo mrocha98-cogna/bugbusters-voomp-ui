@@ -35,6 +35,8 @@ class AppPalette {
   static const Color neutral100 = Color(0xFFF5F5F5); // Fundo Light
   static const Color white = Color(0xFFFFFFFF);
 
+  static const Color surfaceText = Color(0xFF141416);
+
   // --- FEEDBACK / ALERTS ---
   static const Color error500 = Color(0xFFD32F2F);
   static const Color error100 = Color(0xFFFFEBEE);

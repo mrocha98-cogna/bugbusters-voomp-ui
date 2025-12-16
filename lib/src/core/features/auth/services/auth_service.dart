@@ -1,45 +1,145 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
+import 'package:voomp_sellers_rebranding/src/core/enums/goal.dart';
+import 'package:voomp_sellers_rebranding/src/core/enums/how_knew.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/user_onboarding.dart';
+import 'package:voomp_sellers_rebranding/src/core/network/api_endpoints.dart';
+import 'package:voomp_sellers_rebranding/src/core/network/voomp_api_client.dart';
 
-// Simulação de serviço de autenticação
 class AuthService {
-  // Singleton para manter estado em memória durante o teste
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-  AuthService._internal();
 
-  String? _currentUser;
+  AuthService._internal() {
+    final httpClient = http.Client();
+    final voompClient = VoompApiClient(
+        client: httpClient,
+        baseUrl: ApiEndpoints.apiVoompBaseUrl
+    );
 
-  Future<bool> login(String email, String password) async {
-    // Simula delay de rede
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    // Login "Fake": Aceita qualquer senha maior que 3 digitos
-    if (password.length > 3) {
-      _currentUser = "Ana Carolina"; // Nome fixo do design ou extraído do email
-      return true;
-    }
-    return false;
+    _authRepo = AuthRepositoryImpl(voompClient);
   }
 
-  Future<void> registerUser({
+  late final AuthRepositoryImpl _authRepo;
+
+  // ignore: unused_field
+  UserOnBoarding? _currentUserOnboarding;
+
+  Future<User?> login(String email, String password) async {
+    try {
+      // 1. Tenta logar na API real
+      final user = await _authRepo.login(
+          email: email,
+          password: password
+      );
+
+      return user;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> registerUser({
     required String name,
     required String email,
     required String password,
     required String cpf,
     required String phone,
+    required bool alreadySellOnline,
+    required String goal, // Recebe o texto da UI: "Vender meus produtos"
+    required String howKnew, // Recebe o texto da UI: "Amigo ou colega"
   }) async {
-    await Future.delayed(const Duration(milliseconds: 1500));
-    _currentUser = name;
-    // Aqui você salvaria no backend/firebase
-    debugPrint("Usuário registrado: $name, $email");
+    // 1. Mapeia o texto da UI para o valor do Enum esperado pela API
+    final String? goalApiValue = _getGoalApiValue(goal);
+    final String? howKnewApiValue = _getHowKnewApiValue(howKnew);
+
+    // 2. Chama a API via Repositório com os valores convertidos
+    var result = await _authRepo.signUp(
+      name: name,
+      email: email,
+      password: password,
+      cpf: cpf,
+      phone: phone,
+      howKnew: howKnewApiValue, // Usa o valor do enum
+      alreadySellOnline: alreadySellOnline,
+      goal: goalApiValue, // Usa o valor do enum
+    );
+
+    return result;
   }
 
-  Future<String?> getUserName() async {
-    return _currentUser ?? "Vendedor";
+  String? _getGoalApiValue(String uiValue) {
+    switch (uiValue) {
+      case "sell":
+        return Goal.sell.name;
+      case "affiliate":
+        return Goal.affiliate.name; // Retorna "affiliate"
+      default:
+        return null; // Valor padrão "notInformed"
+    }
   }
+
+  String? _getHowKnewApiValue(String uiValue) {
+    switch (uiValue) {
+      case "Amigo ou colega":
+        return HowKnew.friend.name;
+      case "Anúncio":
+        return HowKnew.ad.name;
+      case "Artigo ou post de blog":
+        return HowKnew.articleOrBlog.name;
+      case "Evento ou feira":
+        return HowKnew.eventOrWorkshop.name;
+      case "Podcast ou vídeo":
+        return HowKnew.podcastOrVideo.name;
+      case "Post nas redes sociais":
+        return HowKnew.socialMediaPost.name;
+      case "Pesquisa online":
+        return HowKnew.webSearch.name;
+      case "Colaborador cogna":
+        return HowKnew.cognaEmployee.name;
+      case "Outros":
+        return HowKnew.other.name;
+      default:
+        return null;
+    }
+  }
+
+  Future<User> getUserInformations() async {
+    return User(
+        id: '' ?? const Uuid().v4(),
+        name: '' ?? '',
+        email: '' ?? '',
+        password: '' ?? '',
+        cpf: '' ?? '',
+        phone: '' ?? '',
+        userOnboardingId: '' ?? ''
+    );
+  }
+
+  Future<bool> sendVerificationCode(String email) async {
+    try {
+      await _authRepo.generateVerificationCode(email);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> validateVerificationCode(String email, String code) async {
+    try {
+      return _authRepo.verifyCode(email, code);
+    } catch (e) {
+      return false;
+    }
+  }
+
 
   void logout() {
-    _currentUser = null;
+    // _currentUser = null;
+    // Opcional: Limpar SharedPreferences ao deslogar
+    // SharedPreferences.getInstance().then((prefs) => prefs.clear());
   }
 }

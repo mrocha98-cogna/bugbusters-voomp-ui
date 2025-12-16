@@ -1,0 +1,4 @@
+enum Goal {
+  sell,
+  affiliate,
+}
