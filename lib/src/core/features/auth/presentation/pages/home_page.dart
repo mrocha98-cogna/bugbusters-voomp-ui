@@ -34,31 +34,21 @@ class _HomePageState extends State<HomePage> {
   void _loadUser() async {
     final token = await DatabaseHelper.instance.getAccessToken();
 
-    // if (token == null) {
-    //   if (mounted) context.go('/login');
-    //   return;
-    // }
+    if (token == null) {
+      if (mounted) context.go('/login');
+      return;
+    }
 
-    // final decodedToken = JwtDecoder.decode(token);
-    //
-    // var extra = User(
-    //   id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
-    //   name: decodedToken['name'] ?? '',
-    //   email: decodedToken['email'] ?? '',
-    //   password: '',
-    //   cpf: decodedToken['cpf'] ?? '',
-    //   phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
-    //   userOnboardingId: decodedToken['onboardingId'] ?? '',
-    // );
+    final decodedToken = JwtDecoder.decode(token);
 
     var extra = User(
-      id: '',
-      name: 'Eduardo',
-      email: 'eduardo.candido@cogna.com.br',
+      id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
+      name: decodedToken['name'] ?? '',
+      email: decodedToken['email'] ?? '',
       password: '',
-      cpf: '',
-      phone: '',
-      userOnboardingId: '',
+      cpf: decodedToken['cpf'] ?? '',
+      phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
+      userOnboardingId: decodedToken['onboardingId'] ?? '',
     );
 
     if (mounted) {

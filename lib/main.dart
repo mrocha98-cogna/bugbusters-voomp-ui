@@ -7,7 +7,7 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'src/app.dart';
 
 void main() {
-  usePathUrlStrategy();
+  // usePathUrlStrategy();
   if (kIsWeb) {
     // Inicializa o factory para Web
     databaseFactory = databaseFactoryFfiWeb;
