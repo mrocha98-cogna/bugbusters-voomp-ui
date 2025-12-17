@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 
 class OverviewDashboardPage extends StatelessWidget {
@@ -11,93 +12,89 @@ class OverviewDashboardPage extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Breakpoint para responsividade
     final isDesktop = MediaQuery.of(context).size.width >= 1000;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Header
-          Text(
-            "Olá, $userName",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
+      child: MaxWidthContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Header
+            Text(
+              "Olá, $userName",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Estamos muito felizes de te receber aqui. Te desejamos boas vendas!",
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            const SizedBox(height: 8),
+            Text(
+              "Estamos muito felizes de te receber aqui. Te desejamos boas vendas!",
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // 2. Banner (Placeholder Cinza)
-          Container(
-            height: 150,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white10 : Colors.grey[200],
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // 3. Cards de Métricas (Top Row)
-          _MetricsRow(isDesktop: isDesktop),
-
-          const SizedBox(height: 24),
-
-          // 4. Área Principal (Gráfico e Saldo)
-          if (isDesktop)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Expanded(flex: 3, child: _SalesFunnelCard()),
-                SizedBox(width: 24),
-                Expanded(flex: 2, child: _BalanceOverviewCard()),
-              ],
-            )
-          else ...[
-            const _SalesFunnelCard(),
             const SizedBox(height: 24),
-            const _BalanceOverviewCard(),
-          ],
 
-          const SizedBox(height: 24),
-
-          // 5. Área Inferior (Suporte e Meios de Pagamento)
-          if (isDesktop)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Expanded(flex: 3, child: _SupportInfoCard()),
-                SizedBox(width: 24),
-                Expanded(flex: 2, child: _PaymentMethodsCard()),
-              ],
-            )
-          else ...[
-            const _SupportInfoCard(),
+            // 2. Banner (Placeholder Cinza)
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             const SizedBox(height: 24),
-            const _PaymentMethodsCard(),
+
+            // 3. Cards de Métricas (Top Row)
+            _MetricsRow(isDesktop: isDesktop),
+
+            const SizedBox(height: 24),
+
+            // 4. Área Principal (Gráfico e Saldo)
+            if (isDesktop)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Expanded(flex: 3, child: _SalesFunnelCard()),
+                  SizedBox(width: 24),
+                  Expanded(flex: 2, child: _BalanceOverviewCard()),
+                ],
+              )
+            else ...[
+              const _SalesFunnelCard(),
+              const SizedBox(height: 24),
+              const _BalanceOverviewCard(),
+            ],
+
+            const SizedBox(height: 24),
+
+            // 5. Área Inferior (Suporte e Meios de Pagamento)
+            if (isDesktop)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Expanded(flex: 3, child: _SupportInfoCard()),
+                  SizedBox(width: 24),
+                  Expanded(flex: 2, child: _PaymentMethodsCard()),
+                ],
+              )
+            else ...[
+              const _SupportInfoCard(),
+              const SizedBox(height: 24),
+              const _PaymentMethodsCard(),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// WIDGETS COMPONENTIZADOS
-// -----------------------------------------------------------------------------
-
-// --- 3. Cards de Métricas ---
 class _MetricsRow extends StatelessWidget {
   final bool isDesktop;
 
@@ -182,7 +179,6 @@ class _MetricData {
   _MetricData({required this.icon, required this.label, required this.value, required this.color});
 }
 
-// --- 4. Gráfico de Funil (Vendas) ---
 class _SalesFunnelCard extends StatelessWidget {
   const _SalesFunnelCard();
 
@@ -293,7 +289,6 @@ class _SalesFunnelCard extends StatelessWidget {
   }
 }
 
-// --- 5. Card de Saldo ---
 class _BalanceOverviewCard extends StatelessWidget {
   const _BalanceOverviewCard();
 
@@ -375,8 +370,6 @@ class _BalanceOverviewCard extends StatelessWidget {
   }
 }
 
-// --- 6. Lista de Suporte ---
-// --- 6. Lista de Suporte ---
 class _SupportInfoCard extends StatelessWidget {
   const _SupportInfoCard();
 
@@ -492,7 +485,6 @@ class _SupportInfoCard extends StatelessWidget {
   }
 }
 
-
 class _SupportItem {
   final IconData icon;
   final String title;
@@ -501,7 +493,6 @@ class _SupportItem {
   _SupportItem({required this.icon, required this.title, required this.time, required this.tag});
 }
 
-// --- 7. Meios de Pagamento ---
 class _PaymentMethodsCard extends StatelessWidget {
   const _PaymentMethodsCard();
 

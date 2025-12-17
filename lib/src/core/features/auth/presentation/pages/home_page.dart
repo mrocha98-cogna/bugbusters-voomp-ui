@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:voomp_sellers_rebranding/src/core/database/database_helper.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/account/presentation/pages/my_account_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/dashboard/presentation/pages/overview_dashboard_page.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/finance/presentation/pages/financial_statement_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/products/presentation/pages/product_list_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/theme_controller.dart';
 
@@ -31,21 +34,31 @@ class _HomePageState extends State<HomePage> {
   void _loadUser() async {
     final token = await DatabaseHelper.instance.getAccessToken();
 
-    if (token == null) {
-      if (mounted) context.go('/login');
-      return;
-    }
+    // if (token == null) {
+    //   if (mounted) context.go('/login');
+    //   return;
+    // }
 
-    final decodedToken = JwtDecoder.decode(token);
+    // final decodedToken = JwtDecoder.decode(token);
+    //
+    // var extra = User(
+    //   id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
+    //   name: decodedToken['name'] ?? '',
+    //   email: decodedToken['email'] ?? '',
+    //   password: '',
+    //   cpf: decodedToken['cpf'] ?? '',
+    //   phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
+    //   userOnboardingId: decodedToken['onboardingId'] ?? '',
+    // );
 
     var extra = User(
-      id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
-      name: decodedToken['name'] ?? '',
-      email: decodedToken['email'] ?? '',
+      id: '',
+      name: 'Eduardo',
+      email: 'eduardo.candido@cogna.com.br',
       password: '',
-      cpf: decodedToken['cpf'] ?? '',
-      phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
-      userOnboardingId: decodedToken['onboardingId'] ?? '',
+      cpf: '',
+      phone: '',
+      userOnboardingId: '',
     );
 
     if (mounted) {
@@ -57,17 +70,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-    if (index == 1) {
-      context.go('/products');
-    }
-    else if (index == 2) {
-      context.go('/create-product');
-    } else if (index == 3) {
-      context.go('/financial-statement');
-    }else {
-      return;
-    }
+    if (index == 2) return;
+
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -79,14 +86,13 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-
     final List<Widget> pages = [
-      OverviewDashboardPage(userName: _user.name),
+      OverviewDashboardPage(userName: _user.name ?? ''),
       // DashboardContent(userName: _user.name),
-      const Center(child: Text("Produtos")),
-      const SizedBox(),
-      const Center(child: Text("Financeiro")),
-      ProfileTab(userName: _user.name, email: _user.email,),
+      const ProductListPage(),                            // Index 1: Produtos
+      const SizedBox(),                                   // Index 2: Placeholder do FAB (se houver)
+      const FinancialStatementPage(),                     // Index 3: Financeiro
+      const MyAccountPage(),                              // Index 4: <--- ADICIONE AQUI (Minha Conta)
     ];
 
     final isMobile = MediaQuery.of(context).size.width < 900;
@@ -122,36 +128,41 @@ class _HomePageState extends State<HomePage> {
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: isMobile
-          ? BottomAppBar(
-              shape: const CircularNotchedRectangle(),
-              notchMargin: 8.0,
-              color: theme.cardColor,
-              surfaceTintColor: Colors.transparent,
-              elevation: 10,
-              shadowColor: Colors.black.withOpacity(0.1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildBottomNavItem(0, Icons.home_filled),
-                  _buildBottomNavItem(1, Icons.inventory_2_outlined),
-                  const SizedBox(width: 48), // Espaço para o FAB
-                  _buildBottomNavItem(3, Icons.account_balance_wallet_outlined),
-                  _buildBottomNavItem(4, Icons.person_outline),
-                ],
-              ),
-            )
+          ? BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed, // Importante para mais de 3 itens
+        selectedItemColor: AppPalette.orange500,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Início',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.local_offer_outlined),
+            activeIcon: Icon(Icons.local_offer),
+            label: 'Produtos',
+          ),
+          BottomNavigationBarItem(
+            icon: SizedBox.shrink(), // Espaço para o FAB central
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.attach_money),
+            label: 'Financeiro',
+          ),
+          // --- NOVO ITEM ---
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Conta',
+          ),
+        ],
+      )
           : null,
-    );
-  }
 
-  Widget _buildBottomNavItem(int index, IconData icon) {
-    final isSelected = _selectedIndex == index;
-    return IconButton(
-      icon: Icon(
-        icon,
-        color: isSelected ? AppPalette.orange500 : AppPalette.neutral400,
-      ),
-      onPressed: () => _onItemTapped(index),
     );
   }
 }
@@ -1172,38 +1183,67 @@ class _SidebarMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Container(
-      width: 70,
+      width: 80, // Largura padrão confortável para sidebar
       color: theme.cardColor,
       child: Column(
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
+          // Logo
           Image.asset(
             'assets/logo.png',
             color: AppPalette.orange500,
             width: 32,
             height: 32,
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 48),
 
+          // Itens do Menu
+          // Index 0: Home / Dashboard
           _iconBtn(context, Icons.home_filled, 0),
-          _iconBtn(context, Icons.inventory_2, 1),
-          _iconBtn(context, Icons.bar_chart_sharp, 2),
-          _iconBtn(context, Icons.delete_outline, 3),
-          _iconBtn(context, Icons.account_balance_wallet_outlined, 4),
+
+          // Index 1: Produtos
+          _iconBtn(context, Icons.local_offer_outlined, 1),
+
+          // Index 2: É o FAB (Mobile), pulamos aqui na Sidebar
+
+          // Index 3: Financeiro
+          _iconBtn(context, Icons.bar_chart, 3),
+
+          // Index 4: Minha Conta (Adicionado conforme solicitado)
+          _iconBtn(context, Icons.person_outline, 4),
+
+          // Ícone de "Lixeira" ou "Arquivados" (Opcional, baseado no seu código antigo)
+          // Se não houver página para isso, pode remover ou criar um index 5
+          // _iconBtn(context, Icons.delete_outline, 5),
+
+          // Ícone de "Mais opções" (Visual)
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            child: Icon(
+              Icons.more_horiz,
+              color: theme.iconTheme.color?.withOpacity(0.3),
+            ),
+          ),
 
           const Spacer(),
+
+          // Avatar do Usuário
           Padding(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: CircleAvatar(
-              backgroundColor: const Color(0xFFFFF3E0),
-              radius: 18,
-              child: Text(
-                "AA",
-                style: TextStyle(
-                  color: Colors.brown[800],
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+            padding: const EdgeInsets.only(bottom: 32),
+            child: InkWell(
+              onTap: () => onItemSelected(4), // Clicar no avatar também leva pra conta
+              child: CircleAvatar(
+                backgroundColor: const Color(0xFFFFF3E0),
+                radius: 20,
+                child: Text(
+                  "AA",
+                  style: TextStyle(
+                    color: Colors.brown[800],
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -1216,33 +1256,28 @@ class _SidebarMenu extends StatelessWidget {
   Widget _iconBtn(BuildContext context, IconData icon, int index) {
     final isSelected = selectedIndex == index;
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return InkWell(
-      onTap: () {
-        if (index == 1) {
-          context.go('/products');
-        } else if (index == 2) {
-          context.go('/financial-statement');
-        }
-        else {
-          onItemSelected(index);
-        }
-      },
-      borderRadius: BorderRadius.circular(8),
-      // Adicionado para o efeito visual do clique ficar bonito
+      onTap: () => onItemSelected(index),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 12),
-        padding: const EdgeInsets.all(8),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF3E0) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          // Fundo ativo sutil (Laranja claro no light, Branco transp. no dark)
+          color: isSelected
+              ? (isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFFFF3E0))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
           icon,
-          size: 20,
+          size: 24,
+          // Cor ativa (Laranja no light, Branco no dark) vs Cinza inativo
           color: isSelected
-              ? Colors.black
-              : theme.iconTheme.color?.withOpacity(0.5),
+              ? (isDark ? Colors.white : Colors.black87)
+              : theme.iconTheme.color?.withOpacity(0.4),
         ),
       ),
     );

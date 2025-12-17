@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart'; // Ajuste o import conforme seu projeto
 
 // --- MODELO DE DADOS MOCK (Para visualização) ---
@@ -49,51 +50,53 @@ class _FinancialStatementPageState extends State<FinancialStatementPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Botão Voltar
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => context.go('/home'),
-                  icon: const Icon(Icons.arrow_back, size: 16, color: AppPalette.orange500),
-                  label: const Text("Voltar", style: TextStyle(color: AppPalette.orange500, fontWeight: FontWeight.bold)),
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+          child: MaxWidthContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Botão Voltar
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => context.go('/home'),
+                    icon: const Icon(Icons.arrow_back, size: 16, color: AppPalette.orange500),
+                    label: const Text("Voltar", style: TextStyle(color: AppPalette.orange500, fontWeight: FontWeight.bold)),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // 2. Card Principal (Saldo)
-              const _MainBalanceCard(),
+                // 2. Card Principal (Saldo)
+                const _MainBalanceCard(),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // 3. Cards de Resumo (Carteira, Mês, A Liberar)
-              const _SummaryCardsSection(),
+                // 3. Cards de Resumo (Carteira, Mês, A Liberar)
+                const _SummaryCardsSection(),
 
-              const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
-              // 4. Abas (Transações / Saques)
-              Row(
-                children: [
-                  _buildTabItem("Transações", 0),
-                  const SizedBox(width: 24),
-                  _buildTabItem("Saques", 1),
-                ],
-              ),
-              const Divider(height: 1, color: AppPalette.neutral300),
+                // 4. Abas (Transações / Saques)
+                Row(
+                  children: [
+                    _buildTabItem("Transações", 0),
+                    const SizedBox(width: 24),
+                    _buildTabItem("Saques", 1),
+                  ],
+                ),
+                const Divider(height: 1, color: AppPalette.neutral300),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // 5. Filtros
-              const _FiltersSection(),
+                // 5. Filtros
+                const _FiltersSection(),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // 6. Tabela de Dados (Responsiva)
-              _TransactionList(transactions: _transactions),
-            ],
+                // 6. Tabela de Dados (Responsiva)
+                _TransactionList(transactions: _transactions),
+              ],
+            ),
           ),
         ),
       ),

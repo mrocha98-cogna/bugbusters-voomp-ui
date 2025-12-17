@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/models/product_enums.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/models/product_model.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/repositories/product_repository.dart';
@@ -68,41 +69,43 @@ class _CreateProductPageState extends State<CreateProductPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Botão Voltar (Link simples)
-              TextButton.icon(
-                onPressed: () => context.go('/home'),
-                // Ajuste a rota conforme necessário
-                icon: const Icon(
-                  Icons.arrow_back,
-                  size: 16,
-                  color: AppPalette.orange500,
-                ),
-                label: const Text(
-                  "Voltar",
-                  style: TextStyle(
+          child: MaxWidthContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Botão Voltar (Link simples)
+                TextButton.icon(
+                  onPressed: () => context.go('/home'),
+                  // Ajuste a rota conforme necessário
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    size: 16,
                     color: AppPalette.orange500,
-                    fontWeight: FontWeight.bold,
+                  ),
+                  label: const Text(
+                    "Voltar",
+                    style: TextStyle(
+                      color: AppPalette.orange500,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    alignment: Alignment.centerLeft,
                   ),
                 ),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  alignment: Alignment.centerLeft,
-                ),
-              ),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // 2. Card de Progresso (Topo)
-              _ProductProgressCard(currentStep: _currentStep, steps: _steps),
+                // 2. Card de Progresso (Topo)
+                _ProductProgressCard(currentStep: _currentStep, steps: _steps),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // 3. Card de Conteúdo Principal (Step 1: O que você quer vender?)
-              _buildCurrentStepContent(),
-            ],
+                // 3. Card de Conteúdo Principal (Step 1: O que você quer vender?)
+                _buildCurrentStepContent(),
+              ],
+            ),
           ),
         ),
       ),

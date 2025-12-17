@@ -11,24 +11,24 @@ import 'package:voomp_sellers_rebranding/src/core/features/products/presentation
 
 class AppRouter {
   static final router = GoRouter(
-    initialLocation: '/login',
-    redirect: (context, state) async {
-      final token = await DatabaseHelper.instance.getAccessToken();
-      final isLoggedIn = token != null && token.isNotEmpty;
-
-      final isLoggingIn = state.uri.toString() == '/login';
-      final isRegistering = state.uri.toString() == '/register';
-
-      if (!isLoggedIn && !isLoggingIn && !isRegistering) {
-        return '/login';
-      }
-
-      if (isLoggedIn && isLoggingIn) {
-        return '/home';
-      }
-
-      return null;
-    },
+    initialLocation: '/home',
+    // redirect: (context, state) async {
+    //   final token = await DatabaseHelper.instance.getAccessToken();
+    //   final isLoggedIn = token != null && token.isNotEmpty;
+    //
+    //   final isLoggingIn = state.uri.toString() == '/login';
+    //   final isRegistering = state.uri.toString() == '/register';
+    //
+    //   if (!isLoggedIn && !isLoggingIn && !isRegistering) {
+    //     return '/login';
+    //   }
+    //
+    //   if (isLoggedIn && isLoggingIn) {
+    //     return '/home';
+    //   }
+    //
+    //   return null;
+    // },
     routes: [
       GoRoute(
         path: '/login',

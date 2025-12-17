@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart'; // Adicione ao pubspec.yaml se não tiver: intl: ^0.18.0
 import 'package:provider/provider.dart'; // Assumindo uso de Provider, ou acesse seu repository como preferir
+import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/models/product_model.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/repositories/product_repository.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
@@ -55,187 +56,185 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- HEADER ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => context.pop(),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      size: 16,
-                      color: AppPalette.orange500,
-                    ),
-                    label: const Text(
-                      "Voltar",
-                      style: TextStyle(
+          child: MaxWidthContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- HEADER ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => context.pop(),
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        size: 16,
                         color: AppPalette.orange500,
-                        fontWeight: FontWeight.bold,
+                      ),
+                      label: const Text(
+                        "Voltar",
+                        style: TextStyle(
+                          color: AppPalette.orange500,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        alignment: Alignment.centerLeft,
                       ),
                     ),
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Navegar para edição passando o objeto
-                      // context.push('/edit-product', extra: product);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppPalette.orange500,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        // Navegar para edição passando o objeto
+                        // context.push('/edit-product', extra: product);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppPalette.orange500,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.edit,
-                      size: 16,
-                      color: AppPalette.surfaceText,
-                    ),
-                    label: const Text(
-                      "Editar produto",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                      icon: const Icon(
+                        Icons.edit,
+                        size: 16,
                         color: AppPalette.surfaceText,
                       ),
+                      label: const Text(
+                        "Editar produto",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppPalette.surfaceText,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // --- CONTEÚDO (Grid Responsivo) ---
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isDesktop = constraints.maxWidth > 900;
+                // --- CONTEÚDO (Grid Responsivo) ---
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth > 900;
 
-                  // Widgets extraídos para reutilização no if/else
-                  final imageCard = _ProductImageCard(
-                    imageUrl: localProduct.imageUrl,
-                  );
-                  final priceCard = _PriceCard(
-                    price: formattedPrice,
-                    billingType:
-                        localProduct.billingType != null
-                            ?localProduct.billingType!.label
-                      : '', // Usa o Enum convertido ou string
-                  );
-                  // Ajuste a data conforme seu model
-                  // final dateCard = _InfoCard(icon: Icons.calendar_today, label: "Criado em", value: formattedDate, theme: theme);
+                    // Widgets extraídos para reutilização no if/else
+                    final imageCard = _ProductImageCard(
+                      imageUrl: localProduct.imageUrl,
+                    );
+                    final priceCard = _PriceCard(
+                      price: formattedPrice,
+                      billingType:
+                          localProduct.billingType != null
+                              ?localProduct.billingType!.label
+                        : '', // Usa o Enum convertido ou string
+                    );
+                    // Ajuste a data conforme seu model
+                    // final dateCard = _InfoCard(icon: Icons.calendar_today, label: "Criado em", value: formattedDate, theme: theme);
 
-                  final titleCard = _TitleCard(
-                    title: localProduct.title,
-                    website: localProduct.website,
-                  );
-                  final descCard = _DescriptionCard(
-                    description: localProduct.description ?? '',
-                  );
+                    final titleCard = _TitleCard(
+                      title: localProduct.title,
+                      website: localProduct.website,
+                    );
+                    final descCard = _DescriptionCard(
+                      description: localProduct.description ?? '',
+                    );
 
-                  final categoryCard = _InfoCard(
-                    icon: Icons.category_outlined,
-                    label: "Categoria",
-                    value:
-                        localProduct.category != null
-                            ? localProduct.category!.label
-                            : '',
-                    theme: theme,
-                  );
+                    final categoryCard = _InfoCard(
+                      icon: Icons.category_outlined,
+                      label: "Categoria",
+                      value:
+                          localProduct.category != null
+                              ? localProduct.category!.label
+                              : '',
+                      theme: theme,
+                    );
 
-                  final warrantyCard = _InfoCard(
-                    icon: Icons.verified_user_outlined,
-                    label: "Garantia",
-                    value: "${localProduct.warrantyInDays} dias",
-                    theme: theme,
-                  );
+                    final warrantyCard = _InfoCard(
+                      icon: Icons.verified_user_outlined,
+                      label: "Garantia",
+                      value: "${localProduct.warrantyInDays} dias",
+                      theme: theme,
+                    );
 
-                  if (isDesktop) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Coluna Esquerda
-                        Expanded(
-                          flex: 4,
-                          child: Column(
+                    if (isDesktop) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Coluna Esquerda
+                          Expanded(
+                            flex: 4,
+                            child: Column(
+                              children: [
+                                imageCard,
+                                const SizedBox(height: 24),
+                                priceCard,
+                                const SizedBox(height: 24),
+                                // dateCard,
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          // Coluna Direita
+                          Expanded(
+                            flex: 6,
+                            child: Column(
+                              children: [
+                                titleCard,
+                                const SizedBox(height: 24),
+                                descCard,
+                                const SizedBox(height: 24),
+                                Row(
+                                  children: [
+                                    Expanded(child: categoryCard),
+                                    const SizedBox(width: 24),
+                                    Expanded(child: warrantyCard),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      // Mobile
+                      return Column(
+                        children: [
+                          imageCard,
+                          const SizedBox(height: 24),
+                          titleCard,
+                          const SizedBox(height: 24),
+                          descCard,
+                          const SizedBox(height: 24),
+                          priceCard,
+                          const SizedBox(height: 24),
+                          Row(
                             children: [
-                              imageCard,
-                              const SizedBox(height: 24),
-                              priceCard,
-                              const SizedBox(height: 24),
-                              // dateCard,
+                              Expanded(child: categoryCard),
+                              const SizedBox(width: 16),
+                              Expanded(child: warrantyCard),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 24),
-                        // Coluna Direita
-                        Expanded(
-                          flex: 6,
-                          child: Column(
-                            children: [
-                              titleCard,
-                              const SizedBox(height: 24),
-                              descCard,
-                              const SizedBox(height: 24),
-                              Row(
-                                children: [
-                                  Expanded(child: categoryCard),
-                                  const SizedBox(width: 24),
-                                  Expanded(child: warrantyCard),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // Mobile
-                    return Column(
-                      children: [
-                        imageCard,
-                        const SizedBox(height: 24),
-                        titleCard,
-                        const SizedBox(height: 24),
-                        descCard,
-                        const SizedBox(height: 24),
-                        priceCard,
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(child: categoryCard),
-                            const SizedBox(width: 16),
-                            Expanded(child: warrantyCard),
-                          ],
-                        ),
-                        // const SizedBox(height: 24),
-                        // dateCard,
-                      ],
-                    );
-                  }
-                },
-              ),
-            ],
+                          // const SizedBox(height: 24),
+                          // dateCard,
+                        ],
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-
-// ==========================================
-// COMPONENTES DO LAYOUT (Refatorados para aceitar null safety se precisar)
-// ==========================================
 
 class _BaseCard extends StatelessWidget {
   final Widget child;
