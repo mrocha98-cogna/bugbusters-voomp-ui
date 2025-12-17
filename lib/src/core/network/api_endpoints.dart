@@ -6,6 +6,11 @@ class ApiEndpoints {
   static const String signUp = '/api/v1/auth/sign-up';
   static const String generationCode = '/api/v1/generation-code';
   static const String generationCodeUse = '/api/v1/generation-code/use';
+  static const String productsList = '/api/v1/products';
+  static const String productDetail = '/api/v1/products';
+  static const String createProduct = '/api/v1/products';
+  static const String updateProduct = '/api/v1/products';
+  static const String deleteProduct = '/api/v1/products';
 
   // API 2: Exemplo - API whatsapp
   static const String apiWhatsappBaseUrl = 'https://whatsapp.com';

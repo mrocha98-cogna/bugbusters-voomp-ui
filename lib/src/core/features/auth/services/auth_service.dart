@@ -25,9 +25,6 @@ class AuthService {
 
   late final AuthRepositoryImpl _authRepo;
 
-  // ignore: unused_field
-  UserOnBoarding? _currentUserOnboarding;
-
   Future<User?> login(String email, String password) async {
     try {
       // 1. Tenta logar na API real

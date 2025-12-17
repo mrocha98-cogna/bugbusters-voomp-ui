@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:voomp_sellers_rebranding/src/core/database/database_helper.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/data/dto/sign_up_request_dto.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
 import 'package:voomp_sellers_rebranding/src/core/network/api_endpoints.dart';
@@ -74,10 +75,10 @@ class AuthRepositoryImpl {
         final data = jsonDecode(response.body);
 
         // 1. Verifica se o token veio na resposta (geralmente em 'accessToken' ou 'token')
-        final String? token = data['accessToken'] ?? data['token'];
+        final String token = data['accessToken'];
 
-        if (token != null && token.isNotEmpty) {
-          // 2. Decodifica o payload do JWT
+        if (token.isNotEmpty) {
+          await DatabaseHelper.instance.saveToken(token);
           Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
 
           // 3. Mapeia os dados do token para o objeto User

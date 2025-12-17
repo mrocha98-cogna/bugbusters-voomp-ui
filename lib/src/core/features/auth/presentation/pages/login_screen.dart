@@ -151,7 +151,7 @@ class _LoginFormCardState extends State<LoginFormCard> {
 
     if (mounted) {
       if (user != null) {
-        context.go('/home', extra: user);
+        context.go('/home');
       } else {
         // Erro retornado pelo backend (ex: senha incorreta ou usuário não encontrado)
         ScaffoldMessenger.of(context).showSnackBar(

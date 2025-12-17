@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:voomp_sellers_rebranding/src/core/database/database_helper.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/dashboard/presentation/pages/overview_dashboard_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/theme_controller.dart';
@@ -15,52 +19,76 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  late String _userName;
-  final AuthService _authService = AuthService();
+  late User _user;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadUser();
-    });
+    _loadUser();
   }
 
   void _loadUser() async {
-    final extra = GoRouterState.of(context).extra;
+    final token = await DatabaseHelper.instance.getAccessToken();
 
-    if (extra != null && extra is User) {
-      if (mounted) {
-        setState(() {
-          _userName = extra.name;
-        });
-      }
-    } else {
-      // 2. Se não veio pela rota (ex: login normal), busca do AuthService (SharedPreferences)
-      final user = await _authService.getUserInformations();
-      if (mounted) {
-        setState(() {
-          _userName = user.name;
-        });
-      }
+    if (token == null) {
+      if (mounted) context.go('/login');
+      return;
+    }
+
+    final decodedToken = JwtDecoder.decode(token);
+
+    var extra = User(
+      id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
+      name: decodedToken['name'] ?? '',
+      email: decodedToken['email'] ?? '',
+      password: '',
+      cpf: decodedToken['cpf'] ?? '',
+      phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
+      userOnboardingId: decodedToken['onboardingId'] ?? '',
+    );
+
+    if (mounted) {
+      setState(() {
+        _user = extra;
+        _isLoading = false; // Carregamento concluído
+      });
     }
   }
 
-  late final List<Widget> _pages = [
-    DashboardContent(userName: _userName), // 0: Home
-    const Center(child: Text("Produtos")), // 1
-    const SizedBox(), // 2 (FAB placeholder)
-    const Center(child: Text("Financeiro")), // 3
-    ProfileTab(userName: _userName), // 4: Perfil com Tema
-  ];
-
   void _onItemTapped(int index) {
-    if (index == 2) return;
     setState(() => _selectedIndex = index);
+    if (index == 1) {
+      context.go('/products');
+    }
+    else if (index == 2) {
+      context.go('/create-product');
+    } else if (index == 3) {
+      context.go('/financial-statement');
+    }else {
+      return;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppPalette.orange500),
+        ),
+      );
+    }
+
+    final List<Widget> pages = [
+      OverviewDashboardPage(userName: _user.name),
+      // DashboardContent(userName: _user.name),
+      const Center(child: Text("Produtos")),
+      const SizedBox(),
+      const Center(child: Text("Financeiro")),
+      ProfileTab(userName: _user.name, email: _user.email,),
+    ];
+
     final isMobile = MediaQuery.of(context).size.width < 900;
     final theme = Theme.of(context);
 
@@ -78,42 +106,40 @@ class _HomePageState extends State<HomePage> {
               ),
 
             // Área de Conteúdo
-            Expanded(
-              child: _pages[_selectedIndex],
-            ),
+            Expanded(child: pages[_selectedIndex]),
           ],
         ),
       ),
-
-      // Bottom Nav (Apenas Mobile)
       floatingActionButton: isMobile
           ? FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppPalette.orange500,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 32),
-      )
+              onPressed: () {
+                context.go('/create-product');
+              },
+              backgroundColor: AppPalette.orange500,
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add, color: Colors.white, size: 32),
+            )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: isMobile
           ? BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8.0,
-        color: theme.cardColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 10,
-        shadowColor: Colors.black.withOpacity(0.1),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildBottomNavItem(0, Icons.home_filled),
-            _buildBottomNavItem(1, Icons.inventory_2_outlined),
-            const SizedBox(width: 48), // Espaço para o FAB
-            _buildBottomNavItem(3, Icons.account_balance_wallet_outlined),
-            _buildBottomNavItem(4, Icons.person_outline),
-          ],
-        ),
-      )
+              shape: const CircularNotchedRectangle(),
+              notchMargin: 8.0,
+              color: theme.cardColor,
+              surfaceTintColor: Colors.transparent,
+              elevation: 10,
+              shadowColor: Colors.black.withOpacity(0.1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildBottomNavItem(0, Icons.home_filled),
+                  _buildBottomNavItem(1, Icons.inventory_2_outlined),
+                  const SizedBox(width: 48), // Espaço para o FAB
+                  _buildBottomNavItem(3, Icons.account_balance_wallet_outlined),
+                  _buildBottomNavItem(4, Icons.person_outline),
+                ],
+              ),
+            )
           : null,
     );
   }
@@ -132,6 +158,7 @@ class _HomePageState extends State<HomePage> {
 
 class DashboardContent extends StatelessWidget {
   final String userName;
+
   const DashboardContent({super.key, required this.userName});
 
   @override
@@ -149,22 +176,25 @@ class DashboardContent extends StatelessWidget {
           Text(
             "Olá, $userName",
             style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onBackground),
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onBackground,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             "Estamos muito felizes de te receber aqui. Te desejamos boas vendas!",
-            style: TextStyle(color: theme.colorScheme.onBackground.withOpacity(0.6), fontSize: 14),
+            style: TextStyle(
+              color: theme.colorScheme.onBackground.withOpacity(0.6),
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 32),
-
-          // 1. Onboarding Card
+          const _WhatsAppNotificationCard(),
+          const SizedBox(height: 24),
           const _OnboardingStepsCard(),
           const SizedBox(height: 24),
 
-          // 2. Layout Responsivo
           if (!isDesktop) ...[
             const _IdentityValidationCard(),
             const SizedBox(height: 24),
@@ -200,7 +230,9 @@ class DashboardContent extends StatelessWidget {
 
 class ProfileTab extends StatelessWidget {
   final String userName;
-  const ProfileTab({super.key, required this.userName});
+  final String email;
+
+  const ProfileTab({super.key, required this.userName, required this.email});
 
   @override
   Widget build(BuildContext context) {
@@ -222,11 +254,13 @@ class ProfileTab extends StatelessWidget {
                   radius: 50,
                   backgroundColor: AppPalette.orange500.withOpacity(0.2),
                   child: Text(
-                    userName.isNotEmpty ? userName.substring(0, 2).toUpperCase() : "AA",
+                    userName.isNotEmpty
+                        ? userName.substring(0, 2).toUpperCase()
+                        : "AA",
                     style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: AppPalette.orange500
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppPalette.orange500,
                     ),
                   ),
                 ),
@@ -240,8 +274,10 @@ class ProfileTab extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  "vendedor@voomp.com.br",
-                  style: TextStyle(color: theme.colorScheme.onBackground.withOpacity(0.6)),
+                  email,
+                  style: TextStyle(
+                    color: theme.colorScheme.onBackground.withOpacity(0.6),
+                  ),
                 ),
                 const SizedBox(height: 40),
 
@@ -264,7 +300,10 @@ class ProfileTab extends StatelessWidget {
                           isDark ? Icons.dark_mode : Icons.light_mode,
                           color: AppPalette.orange500,
                         ),
-                        title: Text("Modo Escuro", style: TextStyle(color: theme.colorScheme.onSurface)),
+                        title: Text(
+                          "Modo Escuro",
+                          style: TextStyle(color: theme.colorScheme.onSurface),
+                        ),
                         trailing: Switch(
                           value: isDark,
                           activeColor: AppPalette.orange500,
@@ -276,8 +315,12 @@ class ProfileTab extends StatelessWidget {
                       Divider(height: 1, color: theme.dividerColor),
                       ListTile(
                         leading: const Icon(Icons.logout, color: Colors.red),
-                        title: const Text("Sair da conta", style: TextStyle(color: Colors.red)),
-                        onTap: () {
+                        title: const Text(
+                          "Sair da conta",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        onTap: () async{
+                          await DatabaseHelper.instance.clearSession();
                           context.go('/login');
                         },
                       ),
@@ -302,11 +345,36 @@ class _OnboardingStepsCard extends StatelessWidget {
 
     // Definição dos passos
     final steps = [
-      _StepData(Icons.check, "Dados Pessoais", "Suas informações", _StepState.completed),
-      _StepData(Icons.shield_outlined, "Identidade", "Validação", _StepState.current),
-      _StepData(Icons.business, "Empresa", "Dados da Empresa", _StepState.locked),
-      _StepData(Icons.inventory_2_outlined, "Produto", "Primeiro Produto", _StepState.locked),
-      _StepData(Icons.sell_outlined, "Primeira Venda", "Vender e Sacar", _StepState.locked),
+      _StepData(
+        Icons.check,
+        "Dados Pessoais",
+        "Suas informações",
+        _StepState.completed,
+      ),
+      _StepData(
+        Icons.shield_outlined,
+        "Identidade",
+        "Validação",
+        _StepState.current,
+      ),
+      _StepData(
+        Icons.business,
+        "Empresa",
+        "Dados da Empresa",
+        _StepState.locked,
+      ),
+      _StepData(
+        Icons.inventory_2_outlined,
+        "Produto",
+        "Primeiro Produto",
+        _StepState.locked,
+      ),
+      _StepData(
+        Icons.sell_outlined,
+        "Primeira Venda",
+        "Vender e Sacar",
+        _StepState.locked,
+      ),
     ];
 
     return Container(
@@ -316,9 +384,10 @@ class _OnboardingStepsCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4)),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -330,25 +399,34 @@ class _OnboardingStepsCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Complete seu cadastro",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: theme.colorScheme.onSurface)),
-                const Text("20%",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                        color: AppPalette.orange500)),
+                Text(
+                  "Complete seu cadastro",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Text(
+                  "20%",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    color: AppPalette.orange500,
+                  ),
+                ),
               ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: Text("1 de 5 etapas concluídas",
-                style: TextStyle(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    fontSize: 12)),
+            child: Text(
+              "1 de 5 etapas concluídas",
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontSize: 12,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -379,10 +457,16 @@ class _OnboardingStepsCard extends StatelessWidget {
               itemBuilder: (context, index) {
                 final step = steps[index];
                 return _buildStepCard(
-                    context, step.icon, step.title, step.subtitle, step.state, index == 1);
+                  context,
+                  step.icon,
+                  step.title,
+                  step.subtitle,
+                  step.state,
+                  index == 1,
+                );
               },
             ),
-          )
+          ),
         ],
       ),
     );
@@ -397,15 +481,21 @@ class _OnboardingStepsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStepCard(BuildContext context, IconData icon, String title,
-      String subtitle, _StepState state, bool isNext) {
+  Widget _buildStepCard(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+    _StepState state,
+    bool isNext,
+  ) {
     Color bg, border, content, iconBg;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Configuração de cores baseada no estado
     switch (state) {
       case _StepState.completed:
-      // Estilo Verde (Mantém para "Dados Pessoais")
+        // Estilo Verde (Mantém para "Dados Pessoais")
         bg = isDark ? Colors.green.withOpacity(0.1) : const Color(0xFFE8F5E9);
         border = Colors.transparent;
         content = isDark ? Colors.greenAccent : const Color(0xFF2E7D32);
@@ -414,7 +504,7 @@ class _OnboardingStepsCard extends StatelessWidget {
 
       case _StepState.current:
       case _StepState.locked:
-      // Estilo Laranja/Bege (Aplica para "Identidade" e todos os outros)
+        // Estilo Laranja/Bege (Aplica para "Identidade" e todos os outros)
         bg = isDark ? Colors.orange.withOpacity(0.1) : const Color(0xFFFFF3E0);
         border = AppPalette.orange500;
         content = AppPalette.orange500;
@@ -431,7 +521,9 @@ class _OnboardingStepsCard extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: isNext ? border : Colors.transparent, width: state == _StepState.current ? 2 : 1.5),
+          color: isNext ? border : Colors.transparent,
+          width: state == _StepState.current ? 2 : 1.5,
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -445,31 +537,37 @@ class _OnboardingStepsCard extends StatelessWidget {
                   ? Color(0xFF2E7D32).withOpacity(0.1)
                   : iconBg,
               border: Border.all(
-                  color: state == _StepState.completed
-                      ? content.withOpacity(contentOpacity)
-                      : Colors.transparent, width: 2),
+                color: state == _StepState.completed
+                    ? content.withOpacity(contentOpacity)
+                    : Colors.transparent,
+                width: 2,
+              ),
             ),
-            child: Icon(icon,
-                size: 32,
-                // ALTERAÇÃO 2: Ícone preto (Colors.black) ao invés de seguir a cor do conteúdo
-                color: Colors.black),
+            child: Icon(
+              icon,
+              size: 32,
+              // ALTERAÇÃO 2: Ícone preto (Colors.black) ao invés de seguir a cor do conteúdo
+              color: Colors.black,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
             title,
             textAlign: TextAlign.center,
             style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: content.withOpacity(contentOpacity)),
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: content.withOpacity(contentOpacity),
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
-                fontSize: 11,
-                color: content.withOpacity(contentOpacity * 0.8)),
+              fontSize: 11,
+              color: content.withOpacity(contentOpacity * 0.8),
+            ),
           ),
         ],
       ),
@@ -509,9 +607,21 @@ class _IdentityValidationCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 24, height: 32,
-                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppPalette.orange500)),
-                child: const Center(child: Text("2", style: TextStyle(fontWeight: FontWeight.bold, color: AppPalette.orange500))),
+                width: 24,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppPalette.orange500),
+                ),
+                child: const Center(
+                  child: Text(
+                    "2",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppPalette.orange500,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -521,17 +631,42 @@ class _IdentityValidationCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Validação de Identidade", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+                        Text(
+                          "Validação de Identidade",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFFFF3E0), borderRadius: BorderRadius.circular(4)),
-                          child: const Text("Em andamento", style: TextStyle(color: AppPalette.orange500, fontSize: 10, fontWeight: FontWeight.bold)),
-                        )
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF3E0),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            "Em andamento",
+                            style: TextStyle(
+                              color: AppPalette.orange500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text("Faça a validação dos seus documentos para liberar todas as funcionalidades",
-                        style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
+                    Text(
+                      "Faça a validação dos seus documentos para liberar todas as funcionalidades",
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -543,15 +678,28 @@ class _IdentityValidationCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey.withOpacity(0.1) : const Color(0xFFFFF3E0).withOpacity(0.5),
+              color: isDark
+                  ? Colors.grey.withOpacity(0.1)
+                  : const Color(0xFFFFF3E0).withOpacity(0.5),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("O que você precisa:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface)),
+                Text(
+                  "O que você precisa:",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 12),
-                _item(context, Icons.description_outlined, "Documentação - CPF"),
+                _item(
+                  context,
+                  Icons.description_outlined,
+                  "Documentação - CPF",
+                ),
                 const SizedBox(height: 8),
                 _item(context, Icons.face, "Selfie - Foto do rosto ao vivo"),
               ],
@@ -567,12 +715,17 @@ class _IdentityValidationCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppPalette.orange500,
                 foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
                 elevation: 0,
               ),
-              child: const Text("Validar identidade", style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                "Validar identidade",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -580,11 +733,16 @@ class _IdentityValidationCard extends StatelessWidget {
 
   Widget _item(BuildContext context, IconData icon, String text) {
     final theme = Theme.of(context);
-    return Row(children: [
-      Icon(icon, size: 16, color: theme.colorScheme.onSurface),
-      const SizedBox(width: 8),
-      Text(text, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface)),
-    ]);
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.onSurface),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
+        ),
+      ],
+    );
   }
 }
 
@@ -608,7 +766,14 @@ class _BalanceCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Meu Saldo", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+              Text(
+                "Meu Saldo",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
               const Icon(Icons.credit_card, size: 20, color: Colors.grey),
             ],
           ),
@@ -616,8 +781,19 @@ class _BalanceCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("R\$ 0,00", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-              const Icon(Icons.visibility_off_outlined, color: Colors.grey, size: 20),
+              Text(
+                "R\$ 0,00",
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const Icon(
+                Icons.visibility_off_outlined,
+                color: Colors.grey,
+                size: 20,
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -625,22 +801,41 @@ class _BalanceCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-                color: isDark ? Colors.grey.withOpacity(0.1) : const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(8)
+              color: isDark
+                  ? Colors.grey.withOpacity(0.1)
+                  : const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Icon(Icons.shield_outlined, size: 24, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                Icon(
+                  Icons.shield_outlined,
+                  size: 24,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Complete seu cadastro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: theme.colorScheme.onSurface)),
-                      Text("Adicione os seus dados bancários para poder sacar", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                      Text(
+                        "Complete seu cadastro",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        "Adicione os seus dados bancários para poder sacar",
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
                     ],
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -652,13 +847,17 @@ class _BalanceCard extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.grey[800] : const Color(0xFF0F172A),
+                backgroundColor: isDark
+                    ? Colors.grey[800]
+                    : const Color(0xFF0F172A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
               child: const Text("Adicionar dados bancários"),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -667,6 +866,7 @@ class _BalanceCard extends StatelessWidget {
 
 class _SalesCard extends StatelessWidget {
   final bool isMobile;
+
   const _SalesCard({this.isMobile = false});
 
   @override
@@ -680,20 +880,25 @@ class _SalesCard extends StatelessWidget {
       ),
       child: isMobile
           ? Column(
-        children: [
-          _buildLeftContent(context),
-          const Divider(height: 48),
-          _buildRightContent(context),
-        ],
-      )
+              children: [
+                _buildLeftContent(context),
+                const Divider(height: 48),
+                _buildRightContent(context),
+              ],
+            )
           : Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(flex: 3, child: _buildLeftContent(context)),
-          Container(width: 1, color: theme.dividerColor, margin: const EdgeInsets.symmetric(horizontal: 24), height: 250),
-          Expanded(flex: 2, child: _buildRightContent(context)),
-        ],
-      ),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 3, child: _buildLeftContent(context)),
+                Container(
+                  width: 1,
+                  color: theme.dividerColor,
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  height: 250,
+                ),
+                Expanded(flex: 2, child: _buildRightContent(context)),
+              ],
+            ),
     );
   }
 
@@ -702,21 +907,47 @@ class _SalesCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Vendas", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+        Text(
+          "Vendas",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
         const SizedBox(height: 32),
         Center(
           child: Column(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: theme.colorScheme.onSurface.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(Icons.sell_outlined, size: 32, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurface.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.sell_outlined,
+                  size: 32,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
               ),
               const SizedBox(height: 16),
-              Text("Nenhuma venda ainda", style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              Text(
+                "Nenhuma venda ainda",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text("Crie seu primeiro produto para começar a vender e acompanhar suas vendas aqui",
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+              Text(
+                "Crie seu primeiro produto para começar a vender e acompanhar suas vendas aqui",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
             ],
           ),
         ),
@@ -725,29 +956,36 @@ class _SalesCard extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton(
-                  onPressed: (){},
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.onSurface,
-                      side: BorderSide(color: theme.dividerColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.onSurface,
+                  side: BorderSide(color: theme.dividerColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text("Ver tutorial")
+                ),
+                child: const Text("Ver tutorial"),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                  onPressed: (){},
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : const Color(0xFF0F172A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[800]
+                      : const Color(0xFF0F172A),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text("Criar produto +")
+                ),
+                child: const Text("Criar produto +"),
               ),
             ),
           ],
-        )
+        ),
       ],
     );
   }
@@ -766,11 +1004,49 @@ class _SalesCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 32),
-        Align(alignment: Alignment.centerRight, child: Text("R\$ 0,00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface))),
-        Align(alignment: Alignment.centerRight, child: Text("Vendas de hoje", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)))),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            "R\$ 0,00",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            "Vendas de hoje",
+            style: TextStyle(
+              fontSize: 10,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
-        Align(alignment: Alignment.centerRight, child: Text("R\$ 0,00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: theme.colorScheme.onSurface))),
-        Align(alignment: Alignment.centerRight, child: Text("Últimos 30 dias", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)))),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            "R\$ 0,00",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            "Últimos 30 dias",
+            style: TextStyle(
+              fontSize: 10,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -780,10 +1056,19 @@ class _SalesCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-          color: active ? theme.colorScheme.onSurface.withOpacity(0.2) : theme.colorScheme.onSurface.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12)
+        color: active
+            ? theme.colorScheme.onSurface.withOpacity(0.2)
+            : theme.colorScheme.onSurface.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text, style: TextStyle(fontSize: 10, fontWeight: active ? FontWeight.bold : FontWeight.normal, color: theme.colorScheme.onSurface)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: active ? FontWeight.bold : FontWeight.normal,
+          color: theme.colorScheme.onSurface,
+        ),
+      ),
     );
   }
 }
@@ -803,23 +1088,56 @@ class _CreditCardRefusals extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Recusas do cartão de crédito", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
-          Text("Últimos 7 dias", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
+          Text(
+            "Recusas do cartão de crédito",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          Text(
+            "Últimos 7 dias",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 24),
           Center(
             child: SizedBox(
-              height: 100, width: 100,
+              height: 100,
+              width: 100,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  CircularProgressIndicator(value: 1, color: theme.colorScheme.onSurface.withOpacity(0.1), strokeWidth: 8),
-                  Text("0%", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface)),
+                  CircularProgressIndicator(
+                    value: 1,
+                    color: theme.colorScheme.onSurface.withOpacity(0.1),
+                    strokeWidth: 8,
+                  ),
+                  Text(
+                    "0%",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 24),
-          Center(child: Text("Crie um produto e comece a vendê-lo.", style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.6)))),
+          Center(
+            child: Text(
+              "Crie um produto e comece a vendê-lo.",
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -829,11 +1147,13 @@ class _CreditCardRefusals extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppPalette.orange500,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
               child: const Text("Criar produto +"),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -844,7 +1164,10 @@ class _SidebarMenu extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
 
-  const _SidebarMenu({required this.selectedIndex, required this.onItemSelected});
+  const _SidebarMenu({
+    required this.selectedIndex,
+    required this.onItemSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -855,12 +1178,17 @@ class _SidebarMenu extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 24),
-          Image.asset('assets/logo.png', color: AppPalette.orange500, width: 32, height: 32),
+          Image.asset(
+            'assets/logo.png',
+            color: AppPalette.orange500,
+            width: 32,
+            height: 32,
+          ),
           const SizedBox(height: 40),
 
           _iconBtn(context, Icons.home_filled, 0),
           _iconBtn(context, Icons.inventory_2, 1),
-          _iconBtn(context, Icons.pie_chart_outline, 2),
+          _iconBtn(context, Icons.bar_chart_sharp, 2),
           _iconBtn(context, Icons.delete_outline, 3),
           _iconBtn(context, Icons.account_balance_wallet_outlined, 4),
 
@@ -870,9 +1198,16 @@ class _SidebarMenu extends StatelessWidget {
             child: CircleAvatar(
               backgroundColor: const Color(0xFFFFF3E0),
               radius: 18,
-              child: Text("AA", style: TextStyle(color: Colors.brown[800], fontSize: 12, fontWeight: FontWeight.bold)),
+              child: Text(
+                "AA",
+                style: TextStyle(
+                  color: Colors.brown[800],
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -884,15 +1219,17 @@ class _SidebarMenu extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        // Lógica de interceptação: Se for o item de Produtos (Index 1)
         if (index == 1) {
-          context.go('/create-product');
-        } else {
-          // Para os outros itens, mantém o comportamento padrão de troca de aba
+          context.go('/products');
+        } else if (index == 2) {
+          context.go('/financial-statement');
+        }
+        else {
           onItemSelected(index);
         }
       },
-      borderRadius: BorderRadius.circular(8), // Adicionado para o efeito visual do clique ficar bonito
+      borderRadius: BorderRadius.circular(8),
+      // Adicionado para o efeito visual do clique ficar bonito
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 12),
         padding: const EdgeInsets.all(8),
@@ -900,9 +1237,212 @@ class _SidebarMenu extends StatelessWidget {
           color: isSelected ? const Color(0xFFFFF3E0) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon,
-            size: 20,
-            color: isSelected ? Colors.black : theme.iconTheme.color?.withOpacity(0.5)),
+        child: Icon(
+          icon,
+          size: 20,
+          color: isSelected
+              ? Colors.black
+              : theme.iconTheme.color?.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
+}
+
+class _WhatsAppNotificationCard extends StatelessWidget {
+  const _WhatsAppNotificationCard();
+
+  @override
+  Widget build(BuildContext context) {
+    // Cores específicas baseadas na imagem (Verde claro e escuro)
+    const backgroundColor = Color(0xFFE8F5E9); // Verde bem claro
+    const borderColor = Color(0xFFC8E6C9); // Borda verde clara
+    const iconColor = Color(0xFF2E7D32); // Verde escuro ícone
+    const textColor = Color(0xFF1B5E20); // Verde escuro texto
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          const Icon(FontAwesomeIcons.whatsapp, color: iconColor, size: 28),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              "As notificações de mensagem estão desativadas. Se deseja receber mensagens sobre suas vendas ative agora",
+              style: TextStyle(
+                color: textColor.withOpacity(0.8),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          TextButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => const _WhatsAppDialog(),
+              );
+            },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(50, 30),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              "Ativar",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: iconColor,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WhatsAppDialog extends StatelessWidget {
+  const _WhatsAppDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.all(16),
+      // Adiciona margem externa segura no mobile
+      child: Container(
+        width: 400, // Mantém largura máxima para desktop
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- HEADER CORRIGIDO ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              // Alinha ao topo caso quebre linha
+              children: [
+                // Usamos Expanded aqui para o texto ocupar só o espaço disponível
+                const Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        FontAwesomeIcons.whatsapp,
+                        color: Color(0xFF2E7D32),
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      // Flexible permite que o texto quebre linha se precisar
+                      Flexible(
+                        child: Text(
+                          "Mensagens no WhatsApp",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          // Garante que não estoure, mas sim vá para linha de baixo ou reticências
+                          overflow: TextOverflow.visible,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Botão fechar mantém seu tamanho fixo
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  // Remove padding extra do IconButton
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+
+            // ------------------------
+            const SizedBox(height: 16),
+
+            const Text(
+              "Por aqui, vamos te manter por dentro de tudo que importa para vender mais: atualizações sobre suas vendas, desempenho do seu produto, novos leads e insights estratégicos para impulsionar seus resultados.",
+              style: TextStyle(
+                color: Color(0xFF616161),
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            Center(
+              child: SizedBox(
+                width: 300,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [Image.asset('assets/conversa.png')],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            const Text(
+              "Caso mude de ideia, você pode desativar a qualquer momento enviando /STOP para o número do WhatsApp.",
+              style: TextStyle(color: Color(0xFF757575), fontSize: 12),
+            ),
+            const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity,
+              height: 45,
+              child: ElevatedButton(
+                onPressed: () async {
+                  const phoneNumber = "595983639051";
+                  const message = "/start";
+                  final whatsappUrl = Uri.parse(
+                    "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}",
+                  );
+                  try {
+                    await launchUrl(
+                      whatsappUrl,
+                      mode: LaunchMode.externalApplication,
+                    );
+                  } catch (e) {
+                    debugPrint("Erro ao abrir WhatsApp: $e");
+                  }
+
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B5E20),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "Ativar",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
