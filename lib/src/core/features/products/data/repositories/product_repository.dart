@@ -24,7 +24,9 @@ class ProductRepository {
         if (decodedResponse is List) {
           list = decodedResponse;
         } else if (decodedResponse is Map<String, dynamic>) {
-          list = decodedResponse['items'] ?? []; // <--- AJUSTE 'data' SE NECESSÁRIO
+          list =
+              decodedResponse['items'] ??
+              []; // <--- AJUSTE 'data' SE NECESSÁRIO
         } else {
           list = [];
         }
@@ -42,7 +44,9 @@ class ProductRepository {
 
   Future<bool> createProduct(ProductModel product, {XFile? imageFile}) async {
     try {
-      final uri = Uri.parse('${_apiClient.baseUrl}${ApiEndpoints.createProduct}');
+      final uri = Uri.parse(
+        '${_apiClient.baseUrl}${ApiEndpoints.createProduct}',
+      );
       var request = http.MultipartRequest('POST', uri);
 
       final token = await DatabaseHelper.instance.getAccessToken();
@@ -59,18 +63,22 @@ class ProductRepository {
       if (imageFile != null) {
         if (kIsWeb) {
           final bytes = await imageFile.readAsBytes();
-          request.files.add(http.MultipartFile.fromBytes(
-            'cover',
-            bytes,
-            filename: imageFile.name,
-            contentType: http.MediaType('image', 'jpeg'),
-          ));
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'cover',
+              bytes,
+              filename: imageFile.name,
+              contentType: http.MediaType('image', 'jpeg'),
+            ),
+          );
         } else {
-          request.files.add(await http.MultipartFile.fromPath(
-            'cover', // Nome do campo esperado pelo backend
-            imageFile.path,
-            contentType: http.MediaType('image', 'jpeg'),
-          ));
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'cover', // Nome do campo esperado pelo backend
+              imageFile.path,
+              contentType: http.MediaType('image', 'jpeg'),
+            ),
+          );
         }
       }
 
@@ -88,6 +96,55 @@ class ProductRepository {
     } catch (e) {
       print('Erro no repositório: $e');
       throw Exception('Erro de conexão ao criar produto.');
+    }
+  }
+
+  Future<String> optimizeTitleWithIA(String text, [String? category]) async {
+    try {
+      final body = {'title': text};
+      if (category != null) {
+        body['category'] = category;
+      }
+      final response = await _apiClient.post(
+        ApiEndpoints.iaOptimizeTitle,
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 201) {
+        final decodedResponse = jsonDecode(response.body);
+
+        return decodedResponse['optimizedTitle'] as String;
+      } else {
+        throw Exception('Falha ao otimizar título com IA');
+      }
+    } catch (e) {
+      throw Exception('Erro de conexão: $e');
+    }
+  }
+
+  Future<String> optimizeDescriptionWithIA(
+    String text, [
+    String? category,
+  ]) async {
+    try {
+      final body = {'descriptor': text};
+      if (category != null) {
+        body['category'] = category;
+      }
+      final response = await _apiClient.post(
+        ApiEndpoints.iaOptimizeDescription,
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 201) {
+        final decodedResponse = jsonDecode(response.body);
+
+        return decodedResponse['optimizedDescriptor'] as String;
+      } else {
+        throw Exception('Falha ao otimizar descrição com IA');
+      }
+    } catch (e) {
+      throw Exception('Erro de conexão: $e');
     }
   }
 }

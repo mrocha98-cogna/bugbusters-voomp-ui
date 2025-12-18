@@ -145,6 +145,9 @@ class _CreateProductPageState extends State<CreateProductPage> {
               ? _nextStep
               : null,
           onBack: _prevStep,
+          selectedCategory: _selectedCategory,
+          optimizeTitleWithIA: _productService.optimizeTitleWithIA,
+          optimizeDescriptionWithIA: _productService.optimizeDescriptionWithIA,
         );
       case 3:
         return _StepPriceCard(
@@ -953,6 +956,11 @@ class _StepDetailsCard extends StatefulWidget {
   final ValueChanged<String> onSalesPageChanged;
   final VoidCallback? onContinue;
   final VoidCallback? onBack;
+  final ProductCategory? selectedCategory;
+  final Future<String?> Function(String text, [ProductCategory? category])
+  optimizeTitleWithIA;
+  final Future<String?> Function(String text, [ProductCategory? category])
+  optimizeDescriptionWithIA;
 
   const _StepDetailsCard({
     required this.initialTitle,
@@ -965,6 +973,9 @@ class _StepDetailsCard extends StatefulWidget {
     required this.onSalesPageChanged,
     required this.onContinue,
     required this.onBack,
+    required this.selectedCategory,
+    required this.optimizeTitleWithIA,
+    required this.optimizeDescriptionWithIA,
   });
 
   @override
@@ -976,6 +987,9 @@ class _StepDetailsCardState extends State<_StepDetailsCard> {
   late TextEditingController _descController;
   late TextEditingController _salesController;
   final ImagePicker _picker = ImagePicker();
+
+  bool _isOptimizingTitle = false;
+  bool _isOptimizingDescription = false;
 
   @override
   void initState() {
@@ -1266,7 +1280,29 @@ class _StepDetailsCardState extends State<_StepDetailsCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Campo Título
-        _buildLabelWithAI("Título do Produto *", theme),
+        _buildLabelWithAI(
+          label: "Título do Produto *",
+          theme: theme,
+          isLoading: _isOptimizingTitle,
+          onTap: _titleController.text.isEmpty
+              ? null
+              : () async {
+                  setState(() {
+                    _isOptimizingTitle = true;
+                  });
+                  final optimized = await widget.optimizeTitleWithIA(
+                    _titleController.text,
+                    widget.selectedCategory,
+                  );
+                  if (optimized != null) {
+                    widget.onTitleChanged(optimized);
+                    _titleController.text = optimized;
+                  }
+                  setState(() {
+                    _isOptimizingTitle = false;
+                  });
+                },
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _titleController,
@@ -1280,7 +1316,29 @@ class _StepDetailsCardState extends State<_StepDetailsCard> {
         const SizedBox(height: 24),
 
         // Campo Descrição
-        _buildLabelWithAI("Descrição do Produto *", theme),
+        _buildLabelWithAI(
+          label: "Descrição do Produto *",
+          theme: theme,
+          isLoading: _isOptimizingDescription,
+          onTap: _descController.text.isEmpty
+              ? null
+              : () async {
+                  setState(() {
+                    _isOptimizingDescription = true;
+                  });
+                  final optimized = await widget.optimizeDescriptionWithIA(
+                    _descController.text,
+                    widget.selectedCategory,
+                  );
+                  if (optimized != null) {
+                    widget.onDescriptionChanged(optimized);
+                    _descController.text = optimized;
+                  }
+                  setState(() {
+                    _isOptimizingDescription = false;
+                  });
+                },
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _descController,
@@ -1336,7 +1394,12 @@ class _StepDetailsCardState extends State<_StepDetailsCard> {
     );
   }
 
-  Widget _buildLabelWithAI(String label, ThemeData theme) {
+  Widget _buildLabelWithAI({
+    required String label,
+    required ThemeData theme,
+    required VoidCallback? onTap,
+    required bool isLoading,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1349,29 +1412,39 @@ class _StepDetailsCardState extends State<_StepDetailsCard> {
           ),
         ),
         // Botão "Melhorar com IA"
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppPalette.neutral300),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.auto_awesome,
-                size: 12,
-                color: AppPalette.neutral500,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                "Melhorar com IA",
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+        InkWell(
+          onTap: isLoading ? null : onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppPalette.neutral300),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome,
+                  size: 12,
+                  color: AppPalette.neutral500,
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Text(
+                  "Melhorar com IA",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+                if (isLoading)
+                  Container(
+                    width: 16,
+                    height: 16,
+                    margin: const EdgeInsets.only(left: 8),
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
@@ -1985,7 +2058,7 @@ class _StepConfirmationCard extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
-                      onPressed: () async{
+                      onPressed: () async {
                         await launchUrl(
                           Uri.parse(
                             website.contains('http')
