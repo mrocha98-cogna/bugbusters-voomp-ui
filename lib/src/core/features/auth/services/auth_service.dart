@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:http/http.dart' as http;
-import 'package:uuid/uuid.dart';
 import 'package:voomp_sellers_rebranding/src/core/enums/goal.dart';
 import 'package:voomp_sellers_rebranding/src/core/enums/how_knew.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
-import 'package:voomp_sellers_rebranding/src/core/features/model/user_onboarding.dart';
 import 'package:voomp_sellers_rebranding/src/core/network/api_endpoints.dart';
 import 'package:voomp_sellers_rebranding/src/core/network/voomp_api_client.dart';
 
@@ -104,18 +102,6 @@ class AuthService {
     }
   }
 
-  Future<User> getUserInformations() async {
-    return User(
-        id: '' ?? const Uuid().v4(),
-        name: '' ?? '',
-        email: '' ?? '',
-        password: '' ?? '',
-        cpf: '' ?? '',
-        phone: '' ?? '',
-        userOnboardingId: '' ?? ''
-    );
-  }
-
   Future<bool> sendVerificationCode(String email) async {
     try {
       await _authRepo.generateVerificationCode(email);
@@ -131,12 +117,5 @@ class AuthService {
     } catch (e) {
       return false;
     }
-  }
-
-
-  void logout() {
-    // _currentUser = null;
-    // Opcional: Limpar SharedPreferences ao deslogar
-    // SharedPreferences.getInstance().then((prefs) => prefs.clear());
   }
 }

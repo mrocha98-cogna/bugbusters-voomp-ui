@@ -12,8 +12,12 @@ class ProductService {
     return await _repository.getProducts();
   }
 
-  Future<bool> createProduct(ProductModel product, {XFile? imageFile}) async {
+  Future<ProductModel> createProduct(ProductModel product, {XFile? imageFile}) async {
     return await _repository.createProduct(product, imageFile: imageFile);
+  }
+
+  Future<ProductModel> getProductById(String productId) async {
+    return await _repository.getProductById(productId);
   }
 
   Future<String?> optimizeTitleWithIA(

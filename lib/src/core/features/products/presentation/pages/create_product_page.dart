@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/models/product_enums.dart';
@@ -204,11 +205,10 @@ class _CreateProductPageState extends State<CreateProductPage> {
     });
   }
 
-  Future<void> _finishCreation() async {
-    setState(() => _isSaving = true);
+  // dentro de _CreateProductPageState
 
-    // 1. Montar o objeto com os dados coletados nos inputs
-    final newProduct = ProductModel(
+  Future<void> _finishCreation() async {
+    setState(() => _isSaving = true);final newProduct = ProductModel(
       id: '',
       title: _productTitle,
       description: _productDescription,
@@ -224,29 +224,36 @@ class _CreateProductPageState extends State<CreateProductPage> {
     );
 
     try {
-      final success = await _productService.createProduct(
+      final createdProduct = await _productService.createProduct(
         newProduct,
         imageFile: _selectedImage,
       );
 
       if (!mounted) return;
 
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Produto criado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+      if (createdProduct.id.isNotEmpty) {
+        showDialog(
+          context: context,
+          barrierDismissible: false, // Impede que o usuário feche o modal clicando fora
+          builder: (context) => const _SuccessModal(),
         );
-        // Redireciona para a lista ou detalhes (se o back retornar o ID, melhor ainda)
-        context.go('/products');
+
+        await Future.delayed(const Duration(seconds: 3));
+
+        if (!mounted) return;
+
+        Navigator.of(context, rootNavigator: true).pop(); // Fecha o dialog
+        context.go('/product-details/${createdProduct.id}', extra: createdProduct);
+
       } else {
-        throw Exception('Falha desconhecida');
+        // Se a API retornar sucesso mas sem o objeto do produto
+        throw Exception('Falha desconhecida ao criar o produto.');
       }
     } catch (e) {
+      // O tratamento de erro continua igual
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao criar produto: $e'),
+          content: Text('Erro ao criar produto: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1246,7 +1253,6 @@ class _StepDetailsCardState extends State<_StepDetailsCard> {
   }
 
   Future<void> _pickImage() async {
-    print("--- CLICOU NA IMAGEM ---");
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -1256,7 +1262,6 @@ class _StepDetailsCardState extends State<_StepDetailsCard> {
       );
 
       if (image != null) {
-        print("Imagem selecionada: ${image.path}"); // Debug
         widget.onImagePicked(image);
       } else {
         print("Seleção cancelada pelo usuário");
@@ -2276,3 +2281,54 @@ class _ProductStepData {
 }
 
 enum _StepState { completed, current, locked }
+
+class _SuccessModal extends StatelessWidget {
+  const _SuccessModal();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Parabéns,",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              "você criou o seu produto!",
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            // Animação Lottie
+            Lottie.asset(
+              'assets/Success.json',
+              width: 150,
+              height: 150,
+              repeat: false,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "Estamos animados para te ajudar no processo de venda!",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+}

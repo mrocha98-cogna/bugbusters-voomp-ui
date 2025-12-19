@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:voomp_sellers_rebranding/src/core/database/database_helper.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/account/presentation/pages/my_account_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/pages/home_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/pages/login_screen.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/presentation/pages/register_screen.dart';
@@ -59,7 +60,6 @@ class AppRouter {
         builder: (context, state) {
           final productId = state.pathParameters['id'] ?? '';
 
-          // Recupera o objeto completo passado via 'extra'
           final product = state.extra as ProductModel?;
 
           return ProductDetailsPage(
@@ -72,7 +72,10 @@ class AppRouter {
         path: '/financial-statement',
         builder: (context, state) => const FinancialStatementPage(),
       ),
-
+      GoRoute(
+        path: '/account',
+        builder: (context, state) => const MyAccountPage(),
+      ),
     ],
   );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart'; // Adicione ao pubspec.yaml se não tiver: intl: ^0.18.0
 import 'package:provider/provider.dart'; // Assumindo uso de Provider, ou acesse seu repository como preferir
+import 'package:url_launcher/url_launcher.dart';
 import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/models/product_model.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/data/repositories/product_repository.dart';
@@ -35,9 +36,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     if (widget.product != null) {
       _productFuture = Future.value(widget.product);
     } else {
-      // TODO: FAZER A REQUISIÇÃO PARA O BACKEND
       final repository = context.read<ProductRepository>();
-      // _productFuture = repository.getProductById(widget.productId);
+      _productFuture = repository.getProductById(widget.productId);
     }
   }
 
@@ -65,7 +65,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     TextButton.icon(
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if(context.canPop()){
+                          context.pop();
+                        }else{
+                          context.go('/home');
+                        }
+                      },
                       icon: const Icon(
                         Icons.arrow_back,
                         size: 16,
@@ -329,7 +335,7 @@ class _TitleCard extends StatelessWidget {
             const SizedBox(height: 16),
             InkWell(
               onTap: () {
-                // Lógica de launchUrl(Uri.parse(salesPage!));
+                launchUrl(Uri.https(website!));
               },
               child: Row(
                 mainAxisSize: MainAxisSize.min,

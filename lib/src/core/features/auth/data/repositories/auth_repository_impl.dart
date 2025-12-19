@@ -74,15 +74,12 @@ class AuthRepositoryImpl {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final data = jsonDecode(response.body);
 
-        // 1. Verifica se o token veio na resposta (geralmente em 'accessToken' ou 'token')
         final String token = data['accessToken'];
 
         if (token.isNotEmpty) {
           await DatabaseHelper.instance.saveToken(token);
           Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
 
-          // 3. Mapeia os dados do token para o objeto User
-          // NOTA: Ajuste as chaves ('sub', 'name', etc) conforme o seu JWT real
           return User(
             id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
             name: decodedToken['name'] ?? '',

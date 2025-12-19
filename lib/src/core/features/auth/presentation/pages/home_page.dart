@@ -3,13 +3,16 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
 import 'package:voomp_sellers_rebranding/src/core/database/database_helper.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/account/presentation/pages/my_account_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/auth/services/auth_service.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/dashboard/presentation/pages/overview_dashboard_page.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/finance/presentation/pages/financial_statement_page.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/PendingSteps.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
 import 'package:voomp_sellers_rebranding/src/core/features/products/presentation/pages/product_list_page.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/settings/data/repositories/settings_repository.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/theme_controller.dart';
 
@@ -24,6 +27,7 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   late User _user;
   bool _isLoading = true;
+  late PendingSteps _userPendingSteps;
 
   @override
   void initState() {
@@ -51,6 +55,19 @@ class _HomePageState extends State<HomePage> {
       userOnboardingId: decodedToken['onboardingId'] ?? '',
     );
 
+    // var extra = User(
+    //   id: '',
+    //   name: 'Eduardo Candido',
+    //   email: '',
+    //   password: '',
+    //   cpf: '',
+    //   phone: '',
+    //   userOnboardingId: '',
+    // );
+    final SettingsRepository _settingsRepository = SettingsRepository(); // Instancia o repositório
+    _userPendingSteps = await _settingsRepository.getUserPendingSteps();
+    _userPendingSteps.hasWhatsappNotification = await _settingsRepository.getWhatsappUserStatus();
+
     if (mounted) {
       setState(() {
         _user = extra;
@@ -60,7 +77,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onItemTapped(int index) {
-    if (index == 2) return;
+    // if (index == 2) return;
 
     setState(() {
       _selectedIndex = index;
@@ -69,6 +86,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 900;
     if (_isLoading) {
       return const Scaffold(
         body: Center(
@@ -77,15 +95,15 @@ class _HomePageState extends State<HomePage> {
       );
     }
     final List<Widget> pages = [
-      OverviewDashboardPage(userName: _user.name ?? ''),
-      // DashboardContent(userName: _user.name),
-      const ProductListPage(),                            // Index 1: Produtos
-      const SizedBox(),                                   // Index 2: Placeholder do FAB (se houver)
-      const FinancialStatementPage(),                     // Index 3: Financeiro
-      const MyAccountPage(),                              // Index 4: <--- ADICIONE AQUI (Minha Conta)
+      _userPendingSteps.hasSales
+          ?  OverviewDashboardPage()
+          :  DashboardContent(showWhatsappCard: !_userPendingSteps.hasWhatsappNotification, userName: _user.name),
+      const ProductListPage(),
+      ProfileTab(userName: _user.name, email: _user.email),
+      const FinancialStatementPage(),
+      const MyAccountPage(),
     ];
 
-    final isMobile = MediaQuery.of(context).size.width < 900;
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -109,58 +127,67 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: isMobile
           ? FloatingActionButton(
               onPressed: () {
-                context.go('/create-product');
+                _onItemTapped(2);
               },
               backgroundColor: AppPalette.orange500,
               shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Colors.white, size: 32),
+              child: const Icon(Icons.settings, color: Colors.white, size: 32),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: isMobile
           ? BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // Importante para mais de 3 itens
-        selectedItemColor: AppPalette.orange500,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.local_offer_outlined),
-            activeIcon: Icon(Icons.local_offer),
-            label: 'Produtos',
-          ),
-          BottomNavigationBarItem(
-            icon: SizedBox.shrink(), // Espaço para o FAB central
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.attach_money),
-            label: 'Financeiro',
-          ),
-          // --- NOVO ITEM ---
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Conta',
-          ),
-        ],
-      )
+              currentIndex: _selectedIndex,
+              onTap: _onItemTapped,
+              type: BottomNavigationBarType.fixed,
+              // Importante para mais de 3 itens
+              selectedItemColor: AppPalette.orange500,
+              unselectedItemColor: Colors.grey,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'Início',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.local_offer_outlined),
+                  activeIcon: Icon(Icons.local_offer),
+                  label: 'Produtos',
+                ),
+                BottomNavigationBarItem(
+                  icon: SizedBox.shrink(), // Espaço para o FAB central
+                  label: '',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.attach_money),
+                  label: 'Financeiro',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_outline),
+                  activeIcon: Icon(Icons.person),
+                  label: 'Conta',
+                ),
+              ],
+            )
           : null,
-
     );
   }
 }
 
-class DashboardContent extends StatelessWidget {
+class DashboardContent extends StatefulWidget {
+  final bool showWhatsappCard;
   final String userName;
+  const DashboardContent({super.key, required this.showWhatsappCard, required this.userName});
 
-  const DashboardContent({super.key, required this.userName});
+  @override
+  State<DashboardContent> createState() => _DashboardContentState();
+}
+
+class _DashboardContentState extends State<DashboardContent> {
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,60 +197,36 @@ class DashboardContent extends StatelessWidget {
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(padding, padding, padding, 100),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Text(
-            "Olá, $userName",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onBackground,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Estamos muito felizes de te receber aqui. Te desejamos boas vendas!",
-            style: TextStyle(
-              color: theme.colorScheme.onBackground.withOpacity(0.6),
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 32),
-          const _WhatsAppNotificationCard(),
-          const SizedBox(height: 24),
-          const _OnboardingStepsCard(),
-          const SizedBox(height: 24),
-
-          if (!isDesktop) ...[
-            const _IdentityValidationCard(),
+      child: MaxWidthContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Olá, ${widget.userName}", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text("Estamos muito felizes de te receber aqui. Te desejamos boas vendas!", style: TextStyle(color: theme.colorScheme.onBackground.withOpacity(0.6), fontSize: 14)),
+            const SizedBox(height: 32),
+            if(widget.showWhatsappCard)
+              const _WhatsAppNotificationCard(),
             const SizedBox(height: 24),
-            const _BalanceCard(),
-            const SizedBox(height: 24),
-            const _SalesCard(isMobile: true),
-            const SizedBox(height: 24),
-            const _CreditCardRefusals(),
-          ] else ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Expanded(flex: 3, child: _IdentityValidationCard()),
-                SizedBox(width: 24),
-                Expanded(flex: 2, child: _BalanceCard()),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Expanded(flex: 3, child: _SalesCard(isMobile: false)),
-                SizedBox(width: 24),
-                Expanded(flex: 2, child: _CreditCardRefusals()),
-              ],
-            ),
+            OnboardingStepsCard(),
+            if (!isDesktop) ...[
+              const SizedBox(height: 24),
+              const _SalesCard(isMobile: true),
+              const SizedBox(height: 24),
+              const _CreditCardRefusals(),
+            ] else ...[
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Expanded(flex: 3, child: _SalesCard(isMobile: false)),
+                  SizedBox(width: 24),
+                  Expanded(flex: 2, child: _CreditCardRefusals()),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -320,7 +323,7 @@ class ProfileTab extends StatelessWidget {
                           "Sair da conta",
                           style: TextStyle(color: Colors.red),
                         ),
-                        onTap: () async{
+                        onTap: () async {
                           await DatabaseHelper.instance.clearSession();
                           context.go('/login');
                         },
@@ -337,15 +340,65 @@ class ProfileTab extends StatelessWidget {
   }
 }
 
-class _OnboardingStepsCard extends StatelessWidget {
-  const _OnboardingStepsCard();
+class OnboardingStepsCard extends StatefulWidget {
+  const OnboardingStepsCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  State<OnboardingStepsCard> createState() => _OnboardingStepsCardState();
+}
 
-    // Definição dos passos
-    final steps = [
+class _OnboardingStepsCardState extends State<OnboardingStepsCard> {
+  int _currentStepIndex = 1;
+  late final List<_StepData> _steps;
+  late bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadStepsStatus();
+  }
+
+  void loadStepsStatus() async {
+    final SettingsRepository _settingsRepository = SettingsRepository(); // Instancia o repositório
+    var _pendingSteps = await _settingsRepository.getUserPendingSteps();
+
+    var _identityStatus = _pendingSteps.hasIdentityValidated
+        ? _StepState.completed
+        : _StepState.current;
+
+    if(_identityStatus == _StepState.current){
+      _currentStepIndex = 1;
+    }
+
+    var _businessStatus = _pendingSteps.hasBusinessData
+        ? _StepState.completed
+        : _pendingSteps.hasIdentityValidated ? _StepState.current : _StepState.locked;
+
+    if(_businessStatus == _StepState.current){
+      _currentStepIndex = 2;
+    }
+
+    var _productStatus = _pendingSteps.hasProducts
+        ? _StepState.completed
+        : _pendingSteps.hasBusinessData ? _StepState.current : _StepState.locked;
+
+    if(_productStatus == _StepState.current){
+      _currentStepIndex = 3;
+    }
+
+    var _salesStatus = _pendingSteps.hasSales
+        ? _StepState.completed
+        : _pendingSteps.hasProducts ? _StepState.current : _StepState.locked;
+
+    if(_salesStatus == _StepState.current){
+      _currentStepIndex = 4;
+    }
+
+    if(_salesStatus == _StepState.completed){
+      _currentStepIndex = 5;
+    }
+
+    _steps = [
       _StepData(
         Icons.check,
         "Dados Pessoais",
@@ -356,27 +409,79 @@ class _OnboardingStepsCard extends StatelessWidget {
         Icons.shield_outlined,
         "Identidade",
         "Validação",
-        _StepState.current,
+        _identityStatus,
       ),
       _StepData(
-        Icons.business,
+        Icons.business_center_outlined,
         "Empresa",
         "Dados da Empresa",
-        _StepState.locked,
+        _businessStatus,
       ),
       _StepData(
         Icons.inventory_2_outlined,
         "Produto",
         "Primeiro Produto",
-        _StepState.locked,
+        _productStatus,
       ),
       _StepData(
         Icons.sell_outlined,
         "Primeira Venda",
         "Vender e Sacar",
-        _StepState.locked,
+        _salesStatus,
       ),
     ];
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  void _advanceToNextStep() async{
+    if(_currentStepIndex == 1){
+      context.push('/account');
+    }
+    else if(_currentStepIndex == 2){
+      final SettingsRepository _settingsRepository = SettingsRepository();
+      var result = await _settingsRepository.postUserBusinessData();
+      if(result){
+        setState(() {
+          _currentStepIndex++;
+        });
+      }
+    }
+    else if(_currentStepIndex == 3){
+      context.push('/create-product');
+    }
+    else if (_currentStepIndex < _steps.length - 1) {
+      setState(() {
+        _currentStepIndex++;
+      });
+    }
+  }
+
+  _StepState _getStepState(int index) {
+    if (index < _currentStepIndex) {
+      return _StepState.completed;
+    } else if (index == _currentStepIndex) {
+      return _StepState.current;
+    } else {
+      return _StepState.locked;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppPalette.orange500),
+        ),
+      );
+    }
+
+    final theme = Theme.of(context);
+    final progress = (_currentStepIndex) / (_steps.length);
+    final progressPercentage = (progress * 100).clamp(0, 100).toInt();
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
@@ -394,7 +499,6 @@ class _OnboardingStepsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header do Card
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Row(
@@ -408,9 +512,9 @@ class _OnboardingStepsCard extends StatelessWidget {
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
-                const Text(
-                  "20%",
-                  style: TextStyle(
+                Text(
+                  "$progressPercentage%", // Porcentagem dinâmica
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 24,
                     color: AppPalette.orange500,
@@ -422,7 +526,8 @@ class _OnboardingStepsCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Text(
-              "1 de 5 etapas concluídas",
+              "$_currentStepIndex de ${_steps.length} etapas concluídas",
+              // Texto dinâmico
               style: TextStyle(
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
                 fontSize: 12,
@@ -430,47 +535,65 @@ class _OnboardingStepsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Barra de Progresso
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: const LinearProgressIndicator(
-                value: 0.2,
+              child: LinearProgressIndicator(
+                value: progress, // Valor dinâmico
                 minHeight: 8,
-                backgroundColor: Color(0xFFE0E0E0),
+                backgroundColor: const Color(0xFFE0E0E0),
                 color: AppPalette.orange500,
               ),
             ),
           ),
           const SizedBox(height: 32),
-
-          // Lista Horizontal com Scroll
           SizedBox(
             height: 160,
             width: double.infinity,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: steps.length,
-              separatorBuilder: (context, index) => _buildConnector(index == 0),
+              itemCount: _steps.length,
+              separatorBuilder: (context, index) =>
+                  _buildConnector(index < _currentStepIndex),
               itemBuilder: (context, index) {
-                final step = steps[index];
+                final step = _steps[index];
                 return _buildStepCard(
                   context,
                   step.icon,
                   step.title,
                   step.subtitle,
-                  step.state,
-                  index == 1,
+                  _getStepState(index),
+                  // Usa a função para obter o estado dinâmico
+                  index == _currentStepIndex,
                 );
               },
             ),
           ),
+          const SizedBox(height: 24),
+          _buildCurrentStepActionCard(),
         ],
       ),
     );
+  }
+
+  Widget _buildCurrentStepActionCard() {
+    switch (_currentStepIndex) {
+      case 1:
+        return _IdentityValidationCard(onValidate: _advanceToNextStep);
+      case 2:
+        return _CompanyDataCard(onContinue: _advanceToNextStep);
+      case 3:
+        return _CreateProductCard(onCreate: _advanceToNextStep);
+      case 4:
+        return _FirstSaleCard(
+          onSell: () {
+            /* Lógica final */
+          },
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildConnector(bool isNext) {
@@ -493,10 +616,8 @@ class _OnboardingStepsCard extends StatelessWidget {
     Color bg, border, content, iconBg;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Configuração de cores baseada no estado
     switch (state) {
       case _StepState.completed:
-        // Estilo Verde (Mantém para "Dados Pessoais")
         bg = isDark ? Colors.green.withOpacity(0.1) : const Color(0xFFE8F5E9);
         border = Colors.transparent;
         content = isDark ? Colors.greenAccent : const Color(0xFF2E7D32);
@@ -505,7 +626,6 @@ class _OnboardingStepsCard extends StatelessWidget {
 
       case _StepState.current:
       case _StepState.locked:
-        // Estilo Laranja/Bege (Aplica para "Identidade" e todos os outros)
         bg = isDark ? Colors.orange.withOpacity(0.1) : const Color(0xFFFFF3E0);
         border = AppPalette.orange500;
         content = AppPalette.orange500;
@@ -545,7 +665,7 @@ class _OnboardingStepsCard extends StatelessWidget {
               ),
             ),
             child: Icon(
-              icon,
+              state == _StepState.completed ? Icons.check : icon,
               size: 32,
               // ALTERAÇÃO 2: Ícone preto (Colors.black) ao invés de seguir a cor do conteúdo
               color: Colors.black,
@@ -588,276 +708,69 @@ class _StepData {
 enum _StepState { completed, current, locked }
 
 class _IdentityValidationCard extends StatelessWidget {
-  const _IdentityValidationCard();
+  final VoidCallback onValidate; // Callback para ser chamado no onPressed
+
+  const _IdentityValidationCard({required this.onValidate});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: const Color(0xFFFFF8E1), // Fundo laranja claro
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 24,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppPalette.orange500),
-                ),
-                child: const Center(
-                  child: Text(
-                    "2",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppPalette.orange500,
-                    ),
-                  ),
-                ),
+              const CircleAvatar(
+                backgroundColor: AppPalette.orange500,
+                foregroundColor: Colors.white,
+                radius: 12,
+                child: Text("2", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Validação de Identidade",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF3E0),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            "Em andamento",
-                            style: TextStyle(
-                              color: AppPalette.orange500,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Faça a validação dos seus documentos para liberar todas as funcionalidades",
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.grey.withOpacity(0.1)
-                  : const Color(0xFFFFF3E0).withOpacity(0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "O que você precisa:",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _item(
-                  context,
-                  Icons.description_outlined,
-                  "Documentação - CPF",
-                ),
-                const SizedBox(height: 8),
-                _item(context, Icons.face, "Selfie - Foto do rosto ao vivo"),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          SizedBox(
-            width: double.infinity,
-            height: 45,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppPalette.orange500,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                "Validar identidade",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _item(BuildContext context, IconData icon, String text) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: theme.colorScheme.onSurface),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
-        ),
-      ],
-    );
-  }
-}
-
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
               Text(
-                "Meu Saldo",
+                "Validação de Identidade",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const Icon(Icons.credit_card, size: 20, color: Colors.grey),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "R\$ 0,00",
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
+              const Spacer(),
+              const Chip(
+                label: Text("Em andamento"),
+                backgroundColor: Color(0xFFFFF3E0),
+                labelStyle: TextStyle(
+                  color: AppPalette.orange500,
+                  fontSize: 12,
                 ),
-              ),
-              const Icon(
-                Icons.visibility_off_outlined,
-                color: Colors.grey,
-                size: 20,
+                padding: EdgeInsets.zero,
               ),
             ],
           ),
-          const SizedBox(height: 32),
-
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.grey.withOpacity(0.1)
-                  : const Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.shield_outlined,
-                  size: 24,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Complete seu cadastro",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      Text(
-                        "Adicione os seus dados bancários para poder sacar",
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          const SizedBox(height: 16),
+          Text(
+            "Para sua segurança, precisamos validar sua identidade. Isso leva menos de 5 minutos.",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 16),
-
-          SizedBox(
-            width: double.infinity,
-            height: 40,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark
-                    ? Colors.grey[800]
-                    : const Color(0xFF0F172A),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              child: const Text("Adicionar dados bancários"),
+          // O BOTÃO AGORA CHAMA O CALLBACK
+          ElevatedButton(
+            onPressed: onValidate,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppPalette.orange500,
+              foregroundColor: Colors.white,
             ),
+            child: const Text("Validar Identidade",
+              style: TextStyle(color: AppPalette.surfaceText),),
           ),
         ],
       ),
@@ -1180,7 +1093,6 @@ class _SidebarMenu extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 32),
-          // Logo
           Image.asset(
             'assets/logo.png',
             color: AppPalette.orange500,
@@ -1188,42 +1100,17 @@ class _SidebarMenu extends StatelessWidget {
             height: 32,
           ),
           const SizedBox(height: 48),
-
-          // Itens do Menu
-          // Index 0: Home / Dashboard
           _iconBtn(context, Icons.home_filled, 0),
-
-          // Index 1: Produtos
           _iconBtn(context, Icons.local_offer_outlined, 1),
-
-          // Index 2: É o FAB (Mobile), pulamos aqui na Sidebar
-
-          // Index 3: Financeiro
           _iconBtn(context, Icons.bar_chart, 3),
-
-          // Index 4: Minha Conta (Adicionado conforme solicitado)
           _iconBtn(context, Icons.person_outline, 4),
-
-          // Ícone de "Lixeira" ou "Arquivados" (Opcional, baseado no seu código antigo)
-          // Se não houver página para isso, pode remover ou criar um index 5
-          // _iconBtn(context, Icons.delete_outline, 5),
-
-          // Ícone de "Mais opções" (Visual)
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            child: Icon(
-              Icons.more_horiz,
-              color: theme.iconTheme.color?.withOpacity(0.3),
-            ),
-          ),
-
+          _iconBtn(context, Icons.settings, 2),
           const Spacer(),
-
-          // Avatar do Usuário
           Padding(
             padding: const EdgeInsets.only(bottom: 32),
             child: InkWell(
-              onTap: () => onItemSelected(4), // Clicar no avatar também leva pra conta
+              onTap: () => onItemSelected(4),
+              // Clicar no avatar também leva pra conta
               child: CircleAvatar(
                 backgroundColor: const Color(0xFFFFF3E0),
                 radius: 20,
@@ -1257,7 +1144,9 @@ class _SidebarMenu extends StatelessWidget {
         decoration: BoxDecoration(
           // Fundo ativo sutil (Laranja claro no light, Branco transp. no dark)
           color: isSelected
-              ? (isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFFFF3E0))
+              ? (isDark
+                    ? Colors.white.withOpacity(0.1)
+                    : const Color(0xFFFFF3E0))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
@@ -1355,7 +1244,6 @@ class _WhatsAppDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- HEADER CORRIGIDO ---
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1398,7 +1286,6 @@ class _WhatsAppDialog extends StatelessWidget {
               ],
             ),
 
-            // ------------------------
             const SizedBox(height: 16),
 
             const Text(
@@ -1434,11 +1321,10 @@ class _WhatsAppDialog extends StatelessWidget {
               height: 45,
               child: ElevatedButton(
                 onPressed: () async {
-                  const phoneNumber = "595983639051";
-                  const message = "/start";
-                  final whatsappUrl = Uri.parse(
-                    "https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}",
-                  );
+                  final SettingsRepository _settingsRepository =
+                      SettingsRepository();
+                  final whatsappLink = await _settingsRepository.getWhatsappLink();
+                  final whatsappUrl = Uri.parse(whatsappLink);
                   try {
                     await launchUrl(
                       whatsappUrl,
@@ -1468,6 +1354,288 @@ class _WhatsAppDialog extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CompanyDataCard extends StatelessWidget {
+  final VoidCallback onContinue;
+
+  const _CompanyDataCard({required this.onContinue});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1), // Fundo laranja claro
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: AppPalette.orange500,
+                foregroundColor: Colors.white,
+                radius: 12,
+                child: Text("3", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Dados da empresa",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              const Chip(
+                label: Text("Em andamento"),
+                backgroundColor: Color(0xFFFFF3E0),
+                labelStyle: TextStyle(
+                  color: AppPalette.orange500,
+                  fontSize: 12,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Preencha os dados da sua empresa, caso você tenha.",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "Para saques acima de R\$ 2.000,00 mensal cadastre uma empresa (CNPJ). O que você precisa:",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const _InfoRow(
+            icon: Icons.description_outlined,
+            text: "Contrato Social",
+          ),
+          const SizedBox(height: 8),
+          const _InfoRow(icon: Icons.badge_outlined, text: "CNPJ"),
+          const SizedBox(height: 24),
+          Text(
+            "Se não pretende sacar mais de R\$ 2.000 mensais, você pode pular essa etapa e continuar como pessoa física.",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onContinue, // <--- CHAMA A FUNÇÃO DE AVANÇAR
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurface,
+                    side: BorderSide(color: theme.dividerColor),
+                  ),
+                  child: const Text("Continuar como Pessoa Física"),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onContinue, // <--- CHAMA A FUNÇÃO DE AVANÇAR
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppPalette.orange500,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Preencher dados"),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CreateProductCard extends StatelessWidget {
+  final VoidCallback onCreate;
+
+  const _CreateProductCard({required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1), // Fundo laranja claro
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: AppPalette.orange500,
+                foregroundColor: Colors.white,
+                radius: 12,
+                child: Text("4", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Criar Produto",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              const Chip(
+                label: Text("Em andamento"),
+                backgroundColor: Color(0xFFFFF3E0),
+                labelStyle: TextStyle(
+                  color: AppPalette.orange500,
+                  fontSize: 12,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Crie um produto e comece a vender.",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "O que você precisa:",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const _InfoRow(icon: Icons.title, text: "Nome do Produto"),
+          const SizedBox(height: 8),
+          const _InfoRow(icon: Icons.image_outlined, text: "Imagem do Produto"),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onCreate, // <--- CHAMA A FUNÇÃO DE AVANÇAR
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppPalette.orange500,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("Criar Produto"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FirstSaleCard extends StatelessWidget {
+  final VoidCallback onSell;
+
+  const _FirstSaleCard({required this.onSell});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1), // Fundo laranja claro
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: AppPalette.orange500,
+                foregroundColor: Colors.white,
+                radius: 12,
+                child: Text("5", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Primeira Venda",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              const Chip(
+                label: Text("Em andamento"),
+                backgroundColor: Color(0xFFFFF3E0),
+                labelStyle: TextStyle(
+                  color: AppPalette.orange500,
+                  fontSize: 12,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Realize sua primeira venda para completar o cadastro e ter acesso a todos os recursos.",
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          // Pode adicionar mais informações ou um botão se necessário
+        ],
       ),
     );
   }

@@ -72,7 +72,6 @@ class LoginScreen extends StatelessWidget {
 }
 
 class LoginFormCard extends StatefulWidget {
-// ... (O restante do código da classe LoginFormCard permanece igual)
   const LoginFormCard({super.key});
 
   @override

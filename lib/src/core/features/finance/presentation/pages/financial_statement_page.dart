@@ -54,19 +54,6 @@ class _FinancialStatementPageState extends State<FinancialStatementPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Botão Voltar
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => context.go('/home'),
-                    icon: const Icon(Icons.arrow_back, size: 16, color: AppPalette.orange500),
-                    label: const Text("Voltar", style: TextStyle(color: AppPalette.orange500, fontWeight: FontWeight.bold)),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 2. Card Principal (Saldo)
                 const _MainBalanceCard(),
 
                 const SizedBox(height: 24),
@@ -246,7 +233,7 @@ class _MainBalanceCard extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           ),
-          child: const Text("Realizar Saque", style: TextStyle(fontWeight: FontWeight.bold)),
+          child: const Text("Realizar Saque", style: TextStyle(fontWeight: FontWeight.bold, color: AppPalette.surfaceText)),
         )
       ],
     );

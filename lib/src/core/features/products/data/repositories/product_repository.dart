@@ -42,7 +42,39 @@ class ProductRepository {
     }
   }
 
-  Future<bool> createProduct(ProductModel product, {XFile? imageFile}) async {
+  Future<int> getTotalProducts() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.productsList);
+
+      if (response.statusCode == 200) {
+        final decodedResponse = jsonDecode(response.body);
+
+        return decodedResponse['total'];
+      } else {
+        throw Exception('Falha ao carregar produtos');
+      }
+    } catch (e) {
+      throw Exception('Erro de conexão: $e');
+    }
+  }
+
+  Future<ProductModel> getProductById(String productId) async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.productDetail);
+
+      if (response.statusCode == 200) {
+        final decodedResponse = jsonDecode(response.body);
+
+        return ProductModel.fromJson(decodedResponse);
+      } else {
+        throw Exception('Falha ao carregar o produto');
+      }
+    } catch (e) {
+      throw Exception('Erro de conexão: $e');
+    }
+  }
+
+  Future<ProductModel> createProduct(ProductModel product, {XFile? imageFile}) async {
     try {
       final uri = Uri.parse(
         '${_apiClient.baseUrl}${ApiEndpoints.createProduct}',
@@ -85,11 +117,9 @@ class ProductRepository {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('Status: ${response.statusCode}');
-      print('Body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
+        var productJson = jsonDecode(response.body);
+        return ProductModel.fromJson(productJson);
       } else {
         throw Exception('Falha ao criar: ${response.body}');
       }

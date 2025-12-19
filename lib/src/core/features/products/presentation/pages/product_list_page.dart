@@ -73,26 +73,6 @@ class _ProductListPageState extends State<ProductListPage> {
                   builder: (context, constraints) {
                     final isMobile = constraints.maxWidth < 600;
 
-                    // 1. Botão Voltar
-                    final backButton = OutlinedButton.icon(
-                      onPressed: () => context.go('/home'),
-                      style: OutlinedButton.styleFrom( // Mudei para OutlinedButton.styleFrom para combinar com o widget
-                        backgroundColor: AppPalette.white,
-                        foregroundColor: AppPalette.orange500,
-                        side: const BorderSide(color: AppPalette.neutral300), // Adicionei borda para ficar visível no fundo branco
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      icon: const Icon(Icons.arrow_back, size: 18, color: AppPalette.orange500),
-                      label: const Text(
-                        "voltar",
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppPalette.orange500),
-                      ),
-                    );
-
                     // 2. Título e Subtítulo
                     final titleSection = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,8 +125,6 @@ class _ProductListPageState extends State<ProductListPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              backButton,
-                              // No mobile, podemos simplificar o botão "Novo" ou deixá-lo aqui
                               newButton,
                             ],
                           ),
@@ -160,7 +138,6 @@ class _ProductListPageState extends State<ProductListPage> {
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          backButton,
                           titleSection,
                           newButton,
                         ],

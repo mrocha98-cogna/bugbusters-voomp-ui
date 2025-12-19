@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
+import 'package:voomp_sellers_rebranding/src/core/database/database_helper.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
+
+import '../../../settings/data/repositories/settings_repository.dart';
 
 class MyAccountPage extends StatefulWidget {
   const MyAccountPage({super.key});
@@ -14,10 +19,12 @@ class _MyAccountPageState extends State<MyAccountPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
+  late bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadUser();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       setState(() {
@@ -32,8 +39,44 @@ class _MyAccountPageState extends State<MyAccountPage>
     super.dispose();
   }
 
+  void _loadUser() async {
+    final token = await DatabaseHelper.instance.getAccessToken();
+
+    if (token == null) {
+      if (mounted) context.go('/login');
+      return;
+    }
+
+    final decodedToken = JwtDecoder.decode(token);
+
+    var extra = User(
+      id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
+      name: decodedToken['name'] ?? '',
+      email: decodedToken['email'] ?? '',
+      password: '',
+      cpf: decodedToken['cpf'] ?? '',
+      phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
+      userOnboardingId: decodedToken['onboardingId'] ?? '',
+    );
+
+    if (mounted) {
+      setState(() {
+        // _user = extra;
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppPalette.orange500),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -46,8 +89,8 @@ class _MyAccountPageState extends State<MyAccountPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Header (Voltar)
-                TextButton.icon(
+                if(context.canPop())
+                  TextButton.icon(
                   onPressed: () => context.pop(),
                   icon: const Icon(
                     Icons.arrow_back,
@@ -302,14 +345,44 @@ class _CustomTabBar extends StatelessWidget {
   }
 }
 
-class _IdentityVerificationCard extends StatelessWidget {
+class _IdentityVerificationCard extends StatefulWidget {
   const _IdentityVerificationCard();
+
+  @override
+  State<_IdentityVerificationCard> createState() =>
+      _IdentityVerificationCardState();
+}
+
+class _IdentityVerificationCardState extends State<_IdentityVerificationCard> {
+  late bool _isVerified = false;
+
+  @override
+  void initState() {
+    super.initState();
+    loadVerificationStatus();
+  }
+
+  Future<void> loadVerificationStatus() async {
+    final SettingsRepository _settingsRepository = SettingsRepository();
+    var result = await _settingsRepository.getUserPendingSteps();
+    setState(() {
+      _isVerified = result.hasIdentityValidated;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // A UI agora é construída com base no estado _isVerified
+    return _isVerified
+        ? _buildVerifiedState(theme, isDark) // Mostra o card de "Concluído"
+        : _buildPendingState(theme, isDark);  // Mostra o card "Pendente"
+  }
+
+  // --- WIDGET PARA O ESTADO PENDENTE (O QUE JÁ EXISTE) ---
+  Widget _buildPendingState(ThemeData theme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -347,6 +420,7 @@ class _IdentityVerificationCard extends StatelessWidget {
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
+                        // Chip "Pendente"
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -400,7 +474,6 @@ class _IdentityVerificationCard extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: const Color(0xFFFFF3E0).withOpacity(isDark ? 0.1 : 1),
-              // Adaptação Dark Mode
               borderRadius: BorderRadius.circular(8),
             ),
             child: LayoutBuilder(
@@ -452,7 +525,16 @@ class _IdentityVerificationCard extends StatelessWidget {
                   SizedBox(
                     width: isSmall ? double.infinity : null,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () async{
+                        final SettingsRepository _settingsRepository = SettingsRepository(); // Instancia o repositório
+                        var result = await _settingsRepository.patchUserPendingSteps();
+
+                        if(result){
+                          setState(() {
+                            _isVerified = true;
+                          });
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppPalette.orange500,
                         foregroundColor: Colors.white,
@@ -494,6 +576,86 @@ class _IdentityVerificationCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerifiedState(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Ícone verde
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.verified_user_outlined, // Ícone de verificado
+              color: Colors.green,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Textos
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Verificação de identidade",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Identidade verificada com sucesso!",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Chip "Concluído"
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  size: 14,
+                  color: Colors.green,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  "Concluído",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -588,7 +750,6 @@ class _PersonalDataFormCard extends StatelessWidget {
               child: _CustomTextField(
                 label: "E-mail",
                 hint: "email@email.com",
-                helperText: "Esse e-mail já foi validado", // Helper text visual
               ),
             ),
             const SizedBox(width: 16),
@@ -1523,7 +1684,7 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               ),
-              child: const Text("Salvar Chave Pix", style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text("Salvar Chave Pix", style: TextStyle(fontWeight: FontWeight.bold, color: AppPalette.surfaceText)),
             ),
           ],
         )

@@ -87,7 +87,6 @@ class RegisterScreen extends StatelessWidget {
   }
 }
 
-// O Card Branco que flutua na tela
 class RegistrationFormCard extends StatefulWidget {
   const RegistrationFormCard({super.key});
 
@@ -142,18 +141,10 @@ class _RegistrationFormCardState extends State<RegistrationFormCard> {
             content: Text('Cadastro Salvo! Faça Login.'),
             backgroundColor: Colors.green),
       );
-      final newUser = User(
-        id: '', // O ID real está salvo no SharedPreferences/Backend
-        name: name,
-        email: email,
-        password: password,
-        cpf: cpf,
-        phone: phone,
-        userOnboardingId: '',
-      );
 
-      // Enviamos o objeto via 'extra'
-      context.go('/home', extra: newUser);
+      await _authService.login(email, password);
+
+      context.go('/home');
     }else{
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

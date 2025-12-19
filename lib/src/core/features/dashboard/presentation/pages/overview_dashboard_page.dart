@@ -1,14 +1,109 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:voomp_sellers_rebranding/src/core/common/widgets/max_width_container.dart';
+import 'package:voomp_sellers_rebranding/src/core/database/database_helper.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/dashboard/data/repositories/sales_repository.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/PendingSteps.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/SalesStatistics.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/model/user.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/products/data/repositories/product_repository.dart';
+import 'package:voomp_sellers_rebranding/src/core/features/settings/data/repositories/settings_repository.dart';
+import 'package:voomp_sellers_rebranding/src/core/network/api_endpoints.dart';
+import 'package:voomp_sellers_rebranding/src/core/network/voomp_api_client.dart';
 import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
+import 'package:http/http.dart' as http;
 
-class OverviewDashboardPage extends StatelessWidget {
-  final String userName;
+class OverviewDashboardPage extends StatefulWidget {
+  const OverviewDashboardPage({super.key});
 
-  const OverviewDashboardPage({super.key, required this.userName});
+  @override
+  State<OverviewDashboardPage> createState() => _OverviewDashboardPageState();
+}
+
+class _OverviewDashboardPageState extends State<OverviewDashboardPage> {
+  late User _user;
+  late PendingSteps _userPendingSteps;
+  late double _salesRevenue;
+  late double _salesTotal;
+  late SalesStatistics _salesStatistics;
+  late int _totalProducts;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+    _fetchData();
+  }
+
+  void _loadUser() async {
+    final token = await DatabaseHelper.instance.getAccessToken();
+
+    if (token == null) {
+      if (mounted) context.go('/login');
+      return;
+    }
+
+    final decodedToken = JwtDecoder.decode(token);
+
+    var extra = User(
+      id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
+      name: decodedToken['name'] ?? '',
+      email: decodedToken['email'] ?? '',
+      password: '',
+      cpf: decodedToken['cpf'] ?? '',
+      phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
+      userOnboardingId: decodedToken['onboardingId'] ?? '',
+    );
+
+    final SettingsRepository _settingsRepository = SettingsRepository(); // Instancia o repositório
+    _userPendingSteps = await _settingsRepository.getUserPendingSteps();
+    _userPendingSteps.hasWhatsappNotification = await _settingsRepository.getWhatsappUserStatus();
+
+    if (mounted) {
+      setState(() {
+        _user = extra;
+      });
+    }
+  }
+
+  void _fetchData() async{
+    final SettingsRepository _settingsRepository = SettingsRepository();
+    _userPendingSteps = await _settingsRepository.getUserPendingSteps();
+    _userPendingSteps.hasWhatsappNotification = await _settingsRepository.getWhatsappUserStatus();
+
+    final SalesRepository _salesRepository = SalesRepository();
+    _salesRevenue = await _salesRepository.getSalesRevenue();
+    _salesTotal = await _salesRepository.getSalesTotal();
+    _salesStatistics = await _salesRepository.getSalesStatistics();
+
+    final voompClient = VoompApiClient(
+        client: http.Client(),
+        baseUrl: ApiEndpoints.apiVoompBaseUrl
+    );
+    final ProductRepository _productRepository = ProductRepository(voompClient);
+    _totalProducts = await _productRepository.getTotalProducts();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppPalette.orange500),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -20,38 +115,32 @@ class OverviewDashboardPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Header
-            Text(
-              "Olá, $userName",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Estamos muito felizes de te receber aqui. Te desejamos boas vendas!",
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  Image.asset(
+                    'assets/capa_overview.png',
+                    height: 350,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
 
-            // 2. Banner (Placeholder Cinza)
-            Container(
-              height: 150,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            if(!_userPendingSteps.hasWhatsappNotification)
+              const _WhatsAppNotificationCard(),
+
             const SizedBox(height: 24),
 
-            // 3. Cards de Métricas (Top Row)
-            _MetricsRow(isDesktop: isDesktop),
+            _MetricsRow(
+                isDesktop: isDesktop,
+              salesTotal: _salesTotal,
+              salesRevenue: _salesRevenue,
+              totalProducts: _totalProducts,
+            ),
 
             const SizedBox(height: 24),
 
@@ -59,14 +148,14 @@ class OverviewDashboardPage extends StatelessWidget {
             if (isDesktop)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Expanded(flex: 3, child: _SalesFunnelCard()),
+                children: [
+                  Expanded(flex: 3, child: _SalesFunnelCard(salesStatistics: _salesStatistics)),
                   SizedBox(width: 24),
                   Expanded(flex: 2, child: _BalanceOverviewCard()),
                 ],
               )
             else ...[
-              const _SalesFunnelCard(),
+              _SalesFunnelCard(salesStatistics: _salesStatistics),
               const SizedBox(height: 24),
               const _BalanceOverviewCard(),
             ],
@@ -95,25 +184,227 @@ class OverviewDashboardPage extends StatelessWidget {
   }
 }
 
-class _MetricsRow extends StatelessWidget {
-  final bool isDesktop;
-
-  const _MetricsRow({required this.isDesktop});
+class _WhatsAppNotificationCard extends StatelessWidget {
+  const _WhatsAppNotificationCard();
 
   @override
   Widget build(BuildContext context) {
-    // Dados Mockados
+    // Cores específicas baseadas na imagem (Verde claro e escuro)
+    const backgroundColor = Color(0xFFE8F5E9); // Verde bem claro
+    const borderColor = Color(0xFFC8E6C9); // Borda verde clara
+    const iconColor = Color(0xFF2E7D32); // Verde escuro ícone
+    const textColor = Color(0xFF1B5E20); // Verde escuro texto
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          const Icon(FontAwesomeIcons.whatsapp, color: iconColor, size: 28),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              "As notificações de mensagem estão desativadas. Se deseja receber mensagens sobre suas vendas ative agora",
+              style: TextStyle(
+                color: textColor.withOpacity(0.8),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          TextButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => const _WhatsAppDialog(),
+              );
+            },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(50, 30),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              "Ativar",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: iconColor,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WhatsAppDialog extends StatelessWidget {
+  const _WhatsAppDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.all(16),
+      // Adiciona margem externa segura no mobile
+      child: Container(
+        width: 400, // Mantém largura máxima para desktop
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              // Alinha ao topo caso quebre linha
+              children: [
+                // Usamos Expanded aqui para o texto ocupar só o espaço disponível
+                const Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        FontAwesomeIcons.whatsapp,
+                        color: Color(0xFF2E7D32),
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      // Flexible permite que o texto quebre linha se precisar
+                      Flexible(
+                        child: Text(
+                          "Mensagens no WhatsApp",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          // Garante que não estoure, mas sim vá para linha de baixo ou reticências
+                          overflow: TextOverflow.visible,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Botão fechar mantém seu tamanho fixo
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  // Remove padding extra do IconButton
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            const Text(
+              "Por aqui, vamos te manter por dentro de tudo que importa para vender mais: atualizações sobre suas vendas, desempenho do seu produto, novos leads e insights estratégicos para impulsionar seus resultados.",
+              style: TextStyle(
+                color: Color(0xFF616161),
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            Center(
+              child: SizedBox(
+                width: 300,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [Image.asset('assets/conversa.png')],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            const Text(
+              "Caso mude de ideia, você pode desativar a qualquer momento enviando /STOP para o número do WhatsApp.",
+              style: TextStyle(color: Color(0xFF757575), fontSize: 12),
+            ),
+            const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity,
+              height: 45,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final SettingsRepository _settingsRepository = SettingsRepository(); // Instancia o repositório
+                  final whatsappLink = await _settingsRepository.getWhatsappLink();
+                  final whatsappUrl = Uri.parse(whatsappLink);
+                  try {
+                    await launchUrl(
+                      whatsappUrl,
+                      mode: LaunchMode.externalApplication,
+                    );
+                  } catch (e) {
+                    debugPrint("Erro ao abrir WhatsApp: $e");
+                  }
+
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B5E20),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "Ativar",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricsRow extends StatelessWidget {
+  final bool isDesktop;
+  final double salesTotal;
+  final double salesRevenue;
+  final int totalProducts;
+
+  const _MetricsRow({
+    required this.isDesktop,
+    required this.salesTotal,
+    required this.salesRevenue,
+    required this.totalProducts,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final metrics = [
-      _MetricData(icon: Icons.local_offer_outlined, label: "Vendas", value: "1", color: AppPalette.orange500),
-      _MetricData(icon: Icons.attach_money, label: "Receita", value: "R\$ 200,00", color: AppPalette.orange500),
-      _MetricData(icon: Icons.inventory_2_outlined, label: "Produtos", value: "1", color: AppPalette.orange500),
+      _MetricData(icon: Icons.local_offer_outlined, label: "Vendas", value: salesTotal.toString(), color: AppPalette.orange500),
+      _MetricData(icon: Icons.attach_money, label: "Receita", value: "R\$ $salesRevenue", color: AppPalette.orange500),
+      _MetricData(icon: Icons.inventory_2_outlined, label: "Produtos", value: totalProducts.toString(), color: AppPalette.orange500),
     ];
 
     if (isDesktop) {
       return Row(
         children: metrics.map((m) => Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0), // Espaçamento entre cards
+            padding: EdgeInsets.fromLTRB(metrics.indexOf(m) == 0 ? 0 : 16,0,0,0), // Espaçamento entre cards
             child: _MetricCard(data: m),
           ),
         )).toList(),
@@ -180,12 +471,18 @@ class _MetricData {
 }
 
 class _SalesFunnelCard extends StatelessWidget {
-  const _SalesFunnelCard();
+  final SalesStatistics salesStatistics;
+  const _SalesFunnelCard({required this.salesStatistics});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    var SalesStatistics(:todayRevenue, :last30DaysRevenue, :salesFunnel) = salesStatistics;
+    var SalesFunnel(:totalSales, :totalLeads, :totalVisits, :conversionMetrics) = salesFunnel;
+    var ConversionMetrics(:visitsToLeads, :leadsToSales, :overallConversion) = conversionMetrics;
+
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -212,11 +509,11 @@ class _SalesFunnelCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildFunnelBar("40 Visitas", Colors.blue[100]!, Colors.blue, 0.4, theme),
+                _buildFunnelBar("$totalVisits", Colors.blue[100]!, Colors.blue, (visitsToLeads / 100), theme),
                 const SizedBox(width: 4),
-                _buildFunnelBar("10 Leads", const Color(0xFF1565C0), const Color(0xFF0D47A1), 0.25, theme), // Azul escuro
+                _buildFunnelBar("$totalLeads", const Color(0xFF1565C0), const Color(0xFF0D47A1), (leadsToSales / 100), theme), // Azul escuro
                 const SizedBox(width: 4),
-                _buildFunnelBar("1 Venda", Colors.greenAccent[100]!, Colors.green, 0.15, theme),
+                _buildFunnelBar("$totalSales", Colors.greenAccent[100]!, Colors.green, (overallConversion / 100), theme),
                 const SizedBox(width: 16),
 
                 // Legenda Lateral
@@ -225,11 +522,11 @@ class _SalesFunnelCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Flexible(child: _buildLegendItem("2,5% de taxa de conversão no Funil", theme)),
+                      Flexible(child: _buildLegendItem("$overallConversion% de taxa de conversão no Funil", theme)),
                       const SizedBox(height: 8),
-                      Flexible(child: _buildLegendItem("25% dos visitantes se tornam Leads", theme)),
+                      Flexible(child: _buildLegendItem("$visitsToLeads% dos visitantes se tornam Leads", theme)),
                       const SizedBox(height: 8),
-                      Flexible(child: _buildLegendItem("10% dos Leads se tornam Vendas", theme)),
+                      Flexible(child: _buildLegendItem("$leadsToSales% dos Leads se tornam Vendas", theme)),
                     ],
                   ),
                 )
@@ -244,8 +541,8 @@ class _SalesFunnelCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildBottomValue("R\$ 200,00", "Vendas de hoje", theme),
-              _buildBottomValue("R\$ 200,00", "Últimos 30 dias", theme),
+              _buildBottomValue("R\$ $todayRevenue", "Vendas de hoje", theme),
+              _buildBottomValue("R\$ $last30DaysRevenue", "Últimos 30 dias", theme),
             ],
           )
         ],
@@ -298,6 +595,7 @@ class _BalanceOverviewCard extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
+      height: 380,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: theme.cardColor,
@@ -306,6 +604,8 @@ class _BalanceOverviewCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.max,
+        spacing: 15,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -386,6 +686,7 @@ class _SupportInfoCard extends StatelessWidget {
     ];
 
     return Container(
+      height: 385,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: theme.cardColor,
