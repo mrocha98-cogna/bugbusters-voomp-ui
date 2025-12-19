@@ -31,8 +31,72 @@
 
   <title>Voomp Sellers</title>
   <link rel="manifest" href="manifest.json">
+
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+  <style>
+    body {
+      background-color: #F5F5F5; /* Defina a cor de fundo que você quer */
+    }
+
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      transition: opacity 0.5s ease-out;
+    }
+
+    /* Estilo para um texto opcional abaixo da animação */
+    .loading-text {
+      margin-top: 16px;
+      font-family: Arial, sans-serif;
+      color: #888;
+      font-size: 16px;
+    }
+  </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+<div id="loading" class="loading-container">
+  <lottie-player
+          src="/voomp-sellers/loading_initial.json"
+          background="transparent"
+          speed="1"
+          style="width: 400px; height: 400px;"
+          loop
+          autoplay>
+  </lottie-player>
+  <p class="loading-text">Carregando SEU novo Voomp Sellers! 🧡</p>
+</div>
+
+<script src="flutter.js" defer></script>
+<script>
+  window.addEventListener('load', function(ev) {
+    var serviceWorkerVersion = null;
+
+    _flutter.loader.loadEntrypoint({
+      // --- ADICIONE ESTA LINHA ---
+      showMainLoading: false, // Desativa a barra de progresso azul padrão
+
+      serviceWorker: {
+        serviceWorkerVersion: serviceWorkerVersion,
+      },
+      onEntrypointLoaded: function(engineInitializer) {
+        engineInitializer.initializeEngine().then(function(appRunner) {
+          var loadingScreen = document.getElementById("loading");
+          if (loadingScreen) {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+              loadingScreen.remove();
+            }, 500);
+          }
+          appRunner.runApp();
+        });
+      }
+    });
+  });
+</script>
+
 </body>
 </html>

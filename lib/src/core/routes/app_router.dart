@@ -31,22 +31,13 @@ class AppRouter {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        redirect: (_, _) => '/home',
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/', redirect: (_, _) => '/home'),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomePage(),
-      ),
+      GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(
         path: '/products',
         builder: (context, state) => const ProductListPage(),
@@ -56,7 +47,8 @@ class AppRouter {
         builder: (context, state) => const CreateProductPage(),
       ),
       GoRoute(
-        path: '/product-details/:id', // Mantemos o ID na URL para deep linking se precisar
+        path: '/product-details/:id',
+        // Mantemos o ID na URL para deep linking se precisar
         builder: (context, state) {
           final productId = state.pathParameters['id'] ?? '';
 
@@ -64,7 +56,8 @@ class AppRouter {
 
           return ProductDetailsPage(
             productId: productId,
-            product: product, // Passamos o objeto (pode ser null se acessado via URL direta)
+            product:
+                product, // Passamos o objeto (pode ser null se acessado via URL direta)
           );
         },
       ),
@@ -73,8 +66,12 @@ class AppRouter {
         builder: (context, state) => const FinancialStatementPage(),
       ),
       GoRoute(
-        path: '/account',
-        builder: (context, state) => const MyAccountPage(),
+        path: '/account/:index',
+        builder: (context, state) {
+          final int tabIndex = int.tryParse(state.pathParameters['index'].toString()) ?? 0;
+
+          return MyAccountPage(tabIndex: tabIndex);
+        },
       ),
     ],
   );

@@ -63,11 +63,7 @@ class _OverviewDashboardPageState extends State<OverviewDashboardPage> {
     _userPendingSteps = await _settingsRepository.getUserPendingSteps();
     _userPendingSteps.hasWhatsappNotification = await _settingsRepository.getWhatsappUserStatus();
 
-    if (mounted) {
-      setState(() {
-        _user = extra;
-      });
-    }
+    _user = extra;
   }
 
   void _fetchData() async{
@@ -151,18 +147,15 @@ class _OverviewDashboardPageState extends State<OverviewDashboardPage> {
                 children: [
                   Expanded(flex: 3, child: _SalesFunnelCard(salesStatistics: _salesStatistics)),
                   SizedBox(width: 24),
-                  Expanded(flex: 2, child: _BalanceOverviewCard()),
+                  Expanded(flex: 2, child: _BalanceOverviewCard(userPendingSteps: _userPendingSteps,)),
                 ],
               )
             else ...[
               _SalesFunnelCard(salesStatistics: _salesStatistics),
               const SizedBox(height: 24),
-              const _BalanceOverviewCard(),
+              _BalanceOverviewCard(userPendingSteps: _userPendingSteps),
             ],
-
             const SizedBox(height: 24),
-
-            // 5. Área Inferior (Suporte e Meios de Pagamento)
             if (isDesktop)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,7 +303,9 @@ class _WhatsAppDialog extends StatelessWidget {
             const SizedBox(height: 16),
 
             const Text(
-              "Por aqui, vamos te manter por dentro de tudo que importa para vender mais: atualizações sobre suas vendas, desempenho do seu produto, novos leads e insights estratégicos para impulsionar seus resultados.",
+              "Por aqui, vamos te manter por dentro de tudo que importa para vender mais: atualizações sobre suas vendas, desempenho do seu produto, novos leads e insights estratégicos para impulsionar seus resultados."
+                  "\n ৹ Primeira venda realizada (te avisamos quando você realizar sua primeira venda)"
+                "\n ৹ Morning Call (Resumo diário das suas vendas na Voomp)",
               style: TextStyle(
                 color: Color(0xFF616161),
                 fontSize: 14,
@@ -505,7 +500,7 @@ class _SalesFunnelCard extends StatelessWidget {
 
           // Gráfico Simulado (Placeholder visual)
           SizedBox(
-            height: 160,
+            height: 300,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -516,7 +511,7 @@ class _SalesFunnelCard extends StatelessWidget {
                 _buildFunnelBar("$totalSales", Colors.greenAccent[100]!, Colors.green, (overallConversion / 100), theme),
                 const SizedBox(width: 16),
 
-                // Legenda Lateral
+                // Legenda LateralR
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -587,7 +582,8 @@ class _SalesFunnelCard extends StatelessWidget {
 }
 
 class _BalanceOverviewCard extends StatelessWidget {
-  const _BalanceOverviewCard();
+  final PendingSteps userPendingSteps;
+  const _BalanceOverviewCard({required this.userPendingSteps});
 
   @override
   Widget build(BuildContext context) {
@@ -618,50 +614,57 @@ class _BalanceOverviewCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("R\$ 195,00", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              Text("R\$ 95,00", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
               Icon(Icons.visibility_off_outlined, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.4)),
             ],
           ),
           const SizedBox(height: 24),
 
-          // Aviso de Cadastro
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey[800] : Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
+          if(!userPendingSteps.hasBankingData)...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.shield_outlined, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Complete seu cadastro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface)),
+                        const SizedBox(height: 4),
+                        Text("Adicione os seus dados bancários para poder sacar", style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                      ],
+                    ),
+                  )
+                ],
+              ),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.shield_outlined, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.6)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Complete seu cadastro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface)),
-                      const SizedBox(height: 4),
-                      Text("Adicione os seus dados bancários para poder sacar", style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.6))),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
 
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                if(userPendingSteps.hasBankingData) {
+                  context.push('/financial-statement');
+                } else {
+                  context.push('/account/3');
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D1B2A), // Azul escuro quase preto
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: const Text("Adicionar dados bancários"),
+              child: Text(userPendingSteps.hasBankingData ? "Realizar Saque" : "Adicionar dados bancários"),
             ),
           )
         ],

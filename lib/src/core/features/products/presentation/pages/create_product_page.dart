@@ -1579,7 +1579,6 @@ class _StepPriceCardState extends State<_StepPriceCard> {
               color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
-          // Exibe o nome do produto selecionado anteriormente (opcional, conforme imagem "Curso de Gatos")
           if (widget.productTitle.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(

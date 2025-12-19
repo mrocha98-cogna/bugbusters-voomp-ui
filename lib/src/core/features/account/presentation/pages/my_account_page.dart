@@ -9,7 +9,8 @@ import 'package:voomp_sellers_rebranding/src/core/theme/app_colors.dart';
 import '../../../settings/data/repositories/settings_repository.dart';
 
 class MyAccountPage extends StatefulWidget {
-  const MyAccountPage({super.key});
+  final int tabIndex;
+  const MyAccountPage({super.key, required this.tabIndex});
 
   @override
   State<MyAccountPage> createState() => _MyAccountPageState();
@@ -20,6 +21,7 @@ class _MyAccountPageState extends State<MyAccountPage>
   late TabController _tabController;
   int _selectedTabIndex = 0;
   late bool _isLoading = true;
+  late User _user;
 
   @override
   void initState() {
@@ -49,19 +51,22 @@ class _MyAccountPageState extends State<MyAccountPage>
 
     final decodedToken = JwtDecoder.decode(token);
 
-    var extra = User(
+    _user = User(
       id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
       name: decodedToken['name'] ?? '',
       email: decodedToken['email'] ?? '',
       password: '',
       cpf: decodedToken['cpf'] ?? '',
-      phone: decodedToken['phoneNumber'] ?? decodedToken['phone'] ?? '',
+      phone: decodedToken['phoneNumber'] ?? '',
       userOnboardingId: decodedToken['onboardingId'] ?? '',
     );
 
+    print(token);
+    print(_user.name);
+
     if (mounted) {
       setState(() {
-        // _user = extra;
+        _selectedTabIndex = widget.tabIndex;
         _isLoading = false;
       });
     }
@@ -138,13 +143,13 @@ class _MyAccountPageState extends State<MyAccountPage>
                 const SizedBox(height: 24),
                 // ...
                 if (_selectedTabIndex == 0)
-                  const _PersonalDataTabContent()
+                  _PersonalDataTabContent(user: _user)
                 else if (_selectedTabIndex == 1)
                   const _CompanyDataTabContent()
                 else if (_selectedTabIndex == 2) // <--- ADICIONE ISSO
                   const _SupportDataTabContent()
                 else if (_selectedTabIndex == 3) // <--- ADICIONE ISSO
-                  const _BankingDataTabContent()
+                  _BankingDataTabContent(user: _user)
                 else
                   Center(
                     child: Text(
@@ -162,7 +167,8 @@ class _MyAccountPageState extends State<MyAccountPage>
 }
 
 class _PersonalDataTabContent extends StatelessWidget {
-  const _PersonalDataTabContent();
+  final User user;
+  const _PersonalDataTabContent({required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +179,7 @@ class _PersonalDataTabContent extends StatelessWidget {
         const SizedBox(height: 24),
 
         // Card Dados Pessoais
-        const _PersonalDataFormCard(),
+        _PersonalDataFormCard(user: user),
         const SizedBox(height: 24),
 
         // Card Endereço
@@ -383,6 +389,7 @@ class _IdentityVerificationCardState extends State<_IdentityVerificationCard> {
 
   // --- WIDGET PARA O ESTADO PENDENTE (O QUE JÁ EXISTE) ---
   Widget _buildPendingState(ThemeData theme, bool isDark) {
+    final isMobile = MediaQuery.of(context).size.width < 900;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -409,51 +416,100 @@ class _IdentityVerificationCardState extends State<_IdentityVerificationCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Verificação de identidade",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        // Chip "Pendente"
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF3E0),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppPalette.orange500.withOpacity(0.3),
+                    if(!isMobile)...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              "Verificação de identidade",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: theme.colorScheme.onSurface,
+                              ),
                             ),
                           ),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 12,
-                                color: AppPalette.orange500,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3E0),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppPalette.orange500.withOpacity(0.3),
                               ),
-                              SizedBox(width: 4),
-                              Text(
-                                "Pendente",
-                                style: TextStyle(
-                                  fontSize: 10,
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 12,
                                   color: AppPalette.orange500,
-                                  fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: 4),
+                                Text(
+                                  "Pendente",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppPalette.orange500,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ]
+                    else...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Verificação de identidade",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppPalette.orange500.withOpacity(0.3),
                           ),
                         ),
-                      ],
-                    ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 12,
+                              color: AppPalette.orange500,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              "Pendente",
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppPalette.orange500,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       "Para começar a vender e receber seus pagamentos com segurança, você precisa verificar sua identidade.",
@@ -494,11 +550,13 @@ class _IdentityVerificationCardState extends State<_IdentityVerificationCard> {
                               size: 20,
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              "Complete sua verificação de identidade agora",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
+                            Flexible(
+                              child: Text(
+                                "Complete sua verificação de identidade agora",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.onSurface,
+                                ),
                               ),
                             ),
                           ],
@@ -664,7 +722,8 @@ class _IdentityVerificationCardState extends State<_IdentityVerificationCard> {
 }
 
 class _PersonalDataFormCard extends StatelessWidget {
-  const _PersonalDataFormCard();
+  final User user;
+  const _PersonalDataFormCard({required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -727,7 +786,8 @@ class _PersonalDataFormCard extends StatelessWidget {
             Expanded(
               child: _CustomTextField(
                 label: "Nome Completo",
-                hint: "Descreva sua mensagem",
+                hint: "",
+                value: user.name,
               ),
             ),
             const SizedBox(width: 16),
@@ -735,6 +795,7 @@ class _PersonalDataFormCard extends StatelessWidget {
               child: _CustomTextField(
                 label: "Telefone",
                 hint: "(31) 00000-0000",
+                value: user.phone,
               ),
             ),
           ],
@@ -743,18 +804,19 @@ class _PersonalDataFormCard extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _CustomTextField(label: "RG", hint: "0000000"),
+              child: _CustomTextField(label: "RG (opcional)", hint: "0000000", value: ''),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _CustomTextField(
                 label: "E-mail",
                 hint: "email@email.com",
+                value: user.email,
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _CustomTextField(label: "CPF", hint: "123.123.123-12"),
+              child: _CustomTextField(label: "CPF", hint: "123.123.123-12", value: user.cpf,),
             ),
           ],
         ),
@@ -858,12 +920,12 @@ class _AddressFormCard extends StatelessWidget {
             children: [
               const Expanded(
                 flex: 1,
-                child: _CustomTextField(label: "CEP", hint: "Digito o CEP"),
+                child: _CustomTextField(label: "CEP", hint: "Digito o CEP", value: ''),
               ),
               const SizedBox(width: 16),
               const Expanded(
                 flex: 2,
-                child: _CustomTextField(label: "Endereço", hint: "Endereço"),
+                child: _CustomTextField(label: "Endereço", hint: "Endereço", value: ''),
               ),
             ],
           ),
@@ -873,14 +935,16 @@ class _AddressFormCard extends StatelessWidget {
               const Expanded(
                 child: _CustomTextField(
                   label: "Número",
-                  hint: "123.123.123-12",
+                  hint: "123",
+                  value: ''
                 ),
               ),
               const SizedBox(width: 16),
               const Expanded(
                 child: _CustomTextField(
                   label: "Bairro",
-                  hint: "123.123.123-12",
+                  hint: "Vila Nova",
+                    value: ''
                 ),
               ),
             ],
@@ -891,13 +955,14 @@ class _AddressFormCard extends StatelessWidget {
               const Expanded(
                 child: _CustomTextField(
                   label: "Estado",
-                  hint: "email@email.com",
+                  hint: "SP",
+                  value: '',
                 ),
               ),
               // Label do layout parece erro de copy, mantive
               const SizedBox(width: 16),
               const Expanded(
-                child: _CustomTextField(label: "Cidade", hint: "0000000"),
+                child: _CustomTextField(label: "Cidade", hint: "São Paulo", value: '',),
               ),
             ],
           ),
@@ -957,11 +1022,13 @@ class _SecurityCard extends StatelessWidget {
 class _CustomTextField extends StatelessWidget {
   final String label;
   final String hint;
+  final String value;
   final String? helperText;
 
   const _CustomTextField({
     required this.label,
     required this.hint,
+    required this.value,
     this.helperText,
   });
 
@@ -1014,6 +1081,7 @@ class _CustomTextField extends StatelessWidget {
               fontSize: 10,
               color: theme.colorScheme.onSurface.withOpacity(0.4),
             ),
+            labelText: value,
           ),
         ),
       ],
@@ -1126,6 +1194,7 @@ class _CompanyInfoFormCard extends StatelessWidget {
               child: _CustomTextField(
                 label: "Razão Social",
                 hint: "Digite a razão social",
+                value: '',
               ),
             ),
             const SizedBox(width: 16),
@@ -1133,6 +1202,7 @@ class _CompanyInfoFormCard extends StatelessWidget {
               child: _CustomTextField(
                 label: "Nome Fantasia",
                 hint: "Digite o nome fantasia da empresa",
+                value: '',
               ),
             ),
           ],
@@ -1141,13 +1211,14 @@ class _CompanyInfoFormCard extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _CustomTextField(label: "CNPJ", hint: "0000000"),
+              child: _CustomTextField(label: "CNPJ", hint: "0000000", value: '',),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _CustomTextField(
                 label: "Telefone",
                 hint: "(31) 00000-0000",
+                value: '',
               ),
             ),
           ],
@@ -1264,12 +1335,13 @@ class _CompanyAddressFormCard extends StatelessWidget {
                 child: _CustomTextField(
                   label: "CEP da Empresa",
                   hint: "Digito o CEP",
+                  value: '',
                 ),
               ),
               const SizedBox(width: 16),
               const Expanded(
                 flex: 2,
-                child: _CustomTextField(label: "Endereço", hint: "Endereço"),
+                child: _CustomTextField(label: "Endereço", hint: "Endereço", value: '',),
               ),
             ],
           ),
@@ -1279,14 +1351,16 @@ class _CompanyAddressFormCard extends StatelessWidget {
               const Expanded(
                 child: _CustomTextField(
                   label: "Número",
-                  hint: "123.123.123-12",
+                  hint: "123",
+                  value: '',
                 ),
               ),
               const SizedBox(width: 16),
               const Expanded(
                 child: _CustomTextField(
                   label: "Bairro",
-                  hint: "123.123.123-12",
+                  hint: "Vila Nova",
+                  value: '',
                 ),
               ),
             ],
@@ -1297,13 +1371,14 @@ class _CompanyAddressFormCard extends StatelessWidget {
               const Expanded(
                 child: _CustomTextField(
                   label: "Estado",
-                  hint: "email@email.com",
+                  hint: "SP",
+                  value: ''
                 ),
               ),
               // Mantido placeholder do design
               const SizedBox(width: 16),
               const Expanded(
-                child: _CustomTextField(label: "Cidade", hint: "0000000"),
+                child: _CustomTextField(label: "Cidade", hint: "São Paulo", value: ''),
               ),
             ],
           ),
@@ -1383,7 +1458,8 @@ class _SupportInfoFormCard extends StatelessWidget {
               Expanded(
                 child: _CustomTextField(
                   label: "E-mail de suporte",
-                  hint: "Digite o e-mail",
+                  hint: "suporte@email.com",
+                  value: "suporte@email.com"
                 ),
               ),
               const SizedBox(width: 16),
@@ -1391,6 +1467,7 @@ class _SupportInfoFormCard extends StatelessWidget {
                 child: _CustomTextField(
                   label: "Telefone de suporte",
                   hint: "(31) 99999-9999",
+                  value: "(31) 99999-9999",
                 ),
               ),
             ],
@@ -1402,7 +1479,8 @@ class _SupportInfoFormCard extends StatelessWidget {
 }
 
 class _BankingDataTabContent extends StatefulWidget {
-  const _BankingDataTabContent();
+  final User user;
+  const _BankingDataTabContent({required this.user});
 
   @override
   State<_BankingDataTabContent> createState() => _BankingDataTabContentState();
@@ -1410,7 +1488,7 @@ class _BankingDataTabContent extends StatefulWidget {
 
 class _BankingDataTabContentState extends State<_BankingDataTabContent> {
   String? _selectedMethod;
-  bool _isChangingMethod = false; // <--- NOVA VARIÁVEL DE ESTADO
+  bool _isChangingMethod = false;
 
   void _selectMethod(String method) {
     setState(() {
@@ -1454,42 +1532,80 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header com Botão "Alterar Método" se algo estiver selecionado
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Dados de Recebimento",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
+          if(isDesktop)...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Dados de Recebimento",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                if (_selectedMethod != null)
+                  OutlinedButton(
+                    onPressed: _resetSelection,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppPalette.orange500),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: const Text(
+                      "Alterar Método",
+                      style: TextStyle(
+                        color: AppPalette.orange500,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ]
+          else...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Dados de Recebimento",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            if (_selectedMethod != null)
+              OutlinedButton(
+                onPressed: _resetSelection,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppPalette.orange500),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+                child: const Text(
+                  "Alterar Método",
+                  style: TextStyle(
+                    color: AppPalette.orange500,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-              if (_selectedMethod != null)
-                OutlinedButton(
-                  onPressed: _resetSelection,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppPalette.orange500),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                  ),
-                  child: const Text(
-                    "Alterar Método",
-                    style: TextStyle(
-                      color: AppPalette.orange500,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          ],
           const SizedBox(height: 24),
 
           // LÓGICA DE EXIBIÇÃO
@@ -1637,26 +1753,33 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
         // Campos do Formulário
         LayoutBuilder(builder: (context, constraints) {
           final isSmall = constraints.maxWidth < 800;
+          List<DropdownMenuItem<String>> options = [];
+
+          options.add(DropdownMenuItem(value: 'CPF',child: Text('CPF')));
+          options.add(DropdownMenuItem(value: 'Email',child: Text('Email')));
+          options.add(DropdownMenuItem(value: 'Telefone',child: Text('Telefone')));
+          options.add(DropdownMenuItem(value: 'Chave Aleatória',child: Text('Chave Aleatória')));
 
           if(isSmall) {
             return Column(
-              children: const [
-                _CustomTextField(label: "Nome Completo", hint: "Digite seu nome"),
+              children: [
+                _CustomTextField(label: "Nome Completo", hint: "Digite seu nome",
+                value: widget.user.name),
                 SizedBox(height: 16),
-                _CustomDropdownField(label: "Tipo de Chave Pix", hint: "Selecione o tipo"),
+                _CustomDropdownField(label: "Tipo de Chave Pix", hint: "Selecione o tipo", options: options),
                 SizedBox(height: 16),
-                _CustomTextField(label: "Chave Pix", hint: "Digite sua chave"),
+                _CustomTextField(label: "Chave Pix", hint: "Digite sua chave", value: '',),
               ],
             );
           }
 
           return Row(
-            children: const [
-              Expanded(child: _CustomTextField(label: "Nome Completo", hint: "Digite seu nome")),
+            children: [
+              Expanded(child: _CustomTextField(label: "Nome Completo", hint: "Digite seu nome",value: widget.user.name)),
               SizedBox(width: 16),
-              Expanded(child: _CustomDropdownField(label: "Tipo de Chave Pix", hint: "Selecione o tipo")),
+              Expanded(child: _CustomDropdownField(label: "Tipo de Chave Pix", hint: "Selecione o tipo", options: options,)),
               SizedBox(width: 16),
-              Expanded(child: _CustomTextField(label: "Chave Pix", hint: "Digite sua chave")),
+              Expanded(child: _CustomTextField(label: "Chave Pix", hint: "Digite sua chave", value: '',)),
             ],
           );
         }),
@@ -1675,8 +1798,18 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
-                // Lógica de salvar
+              onPressed: () async {
+                SettingsRepository _settingsRepo = SettingsRepository();
+                var result = await _settingsRepo.postUserBankingData();
+                if(result){
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Dados bancarios salvos com sucesso!'),
+                      backgroundColor: AppPalette.success500,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppPalette.orange500,
@@ -1747,26 +1880,26 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
 
           if (isSmall) {
             return Column(
-              children: const [
+              children: [
                 _CustomTextField(
-                    label: "Nome Completo", hint: "Digite seu nome"),
+                    label: "Nome Completo", hint: "Digite seu nome", value: widget.user.name),
                 SizedBox(height: 16),
                 _CustomTextField(
-                    label: "CPF/CNPJ", hint: "123.123.123-12"),
+                    label: "CPF/CNPJ", hint: "123.123.123-12", value: widget.user.cpf),
                 SizedBox(height: 16),
                 _CustomDropdownField(
-                    label: "Banco", hint: "Selecione seu banco"),
+                    label: "Banco", hint: "Selecione seu banco", options: [],),
                 SizedBox(height: 16),
                 _CustomDropdownField(
-                    label: "Tipo de Conta", hint: "Selecione o tipo de conta"),
+                    label: "Tipo de Conta", hint: "Selecione o tipo de conta", options: [],),
                 SizedBox(height: 16),
                 _CustomTextField(
-                    label: "Agência", hint: "Digite o número da agência"),
+                    label: "Agência", hint: "Digite o número da agência", value: '',),
                 SizedBox(height: 16),
                 _CustomTextField(
-                    label: "Conta", hint: "Digite o número da conta"),
+                    label: "Conta", hint: "Digite o número da conta", value: '',),
                 SizedBox(height: 16),
-                _CustomTextField(label: "Dígito", hint: "Número"),
+                _CustomTextField(label: "Dígito", hint: "Número", value: ''),
               ],
             );
           }
@@ -1774,15 +1907,15 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
           return Column(
             children: [
               Row(
-                children: const [
+                children: [
                   Expanded(
                     child: _CustomTextField(
-                        label: "Nome Completo", hint: "Digite seu nome"),
+                        label: "Nome Completo", hint: "Digite seu nome", value: widget.user.name),
                   ),
                   SizedBox(width: 16),
                   Expanded(
                     child: _CustomTextField(
-                        label: "CPF/CNPJ", hint: "123.123.123-12"),
+                        label: "CPF/CNPJ", hint: "123.123.123-12", value: widget.user.cpf),
                   ),
                 ],
               ),
@@ -1791,13 +1924,15 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
                 children: const [
                   Expanded(
                     child: _CustomDropdownField(
-                        label: "Banco", hint: "Selecione seu banco"),
+                        label: "Banco", hint: "Selecione seu banco", options: [],),
                   ),
                   SizedBox(width: 16),
                   Expanded(
                     child: _CustomDropdownField(
                         label: "Tipo de Conta",
-                        hint: "Selecione o tipo de conta"),
+                        hint: "Selecione o tipo de conta",
+                      options: [],
+                    ),
                   ),
                 ],
               ),
@@ -1807,18 +1942,18 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
                   Expanded(
                     flex: 2,
                     child: _CustomTextField(
-                        label: "Agência", hint: "Digite o número da agência"),
+                        label: "Agência", hint: "Digite o número da agência", value: ''),
                   ),
                   SizedBox(width: 16),
                   Expanded(
                     flex: 3,
                     child: _CustomTextField(
-                        label: "Conta", hint: "Digite o número da conta"),
+                        label: "Conta", hint: "Digite o número da conta", value: ''),
                   ),
                   SizedBox(width: 16),
                   Expanded(
                     flex: 1,
-                    child: _CustomTextField(label: "Dígito", hint: "Número"),
+                    child: _CustomTextField(label: "Dígito", hint: "Número", value: '',),
                   ),
                 ],
               ),
@@ -1862,11 +1997,19 @@ class _BankingDataTabContentState extends State<_BankingDataTabContent> {
   }
 }
 
-class _CustomDropdownField extends StatelessWidget {
+class _CustomDropdownField extends StatefulWidget {
   final String label;
   final String hint;
+  final List<DropdownMenuItem<String>> options;
 
-  const _CustomDropdownField({required this.label, required this.hint});
+  const _CustomDropdownField({required this.label, required this.hint, required this.options});
+
+  @override
+  State<_CustomDropdownField> createState() => _CustomDropdownFieldState();
+}
+
+class _CustomDropdownFieldState extends State<_CustomDropdownField> {
+  String? selectedValue;
 
   @override
   Widget build(BuildContext context) {
@@ -1877,7 +2020,7 @@ class _CustomDropdownField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          widget.label,
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -1886,7 +2029,7 @@ class _CustomDropdownField extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: isDark ? Colors.white10 : Colors.white,
             border: Border.all(color: Colors.grey[300]!),
@@ -1894,16 +2037,21 @@ class _CustomDropdownField extends StatelessWidget {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
+              value: selectedValue,
               isExpanded: true,
               hint: Text(
-                hint,
+                widget.hint,
                 style: TextStyle(
                   fontSize: 13,
                   color: theme.colorScheme.onSurface.withOpacity(0.3),
                 ),
               ),
-              items: const [],
-              onChanged: (_) {},
+              items: widget.options,
+              onChanged: (value) {
+                setState(() {
+                  selectedValue = value;
+                });
+              },
             ),
           ),
         ),

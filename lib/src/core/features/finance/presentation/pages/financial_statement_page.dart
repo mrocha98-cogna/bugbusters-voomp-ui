@@ -54,6 +54,27 @@ class _FinancialStatementPageState extends State<FinancialStatementPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if(context.canPop())
+                  TextButton.icon(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      size: 16,
+                      color: AppPalette.orange500,
+                    ),
+                    label: const Text(
+                      "Voltar",
+                      style: TextStyle(
+                        color: AppPalette.orange500,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                    ),
+                  ),
+                const SizedBox(height: 24),
                 const _MainBalanceCard(),
 
                 const SizedBox(height: 24),
@@ -253,7 +274,7 @@ class _MainBalanceCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-            "R\$ 200,00",
+            "R\$ 95,00",
             style: TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
@@ -282,8 +303,8 @@ class _SummaryCardsSection extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final cards = [
-      _buildCard(Icons.attach_money, "Minha Carteira", "R\$ 200,00", theme, isDark),
-      _buildCard(Icons.show_chart, "Esse mês", "R\$ 200,00", theme, isDark),
+      _buildCard(Icons.attach_money, "Minha Carteira", "R\$ 95,00", theme, isDark),
+      _buildCard(Icons.show_chart, "Esse mês", "R\$ 95,00", theme, isDark),
       _buildCard(Icons.account_balance_wallet_outlined, "Saldo à liberar", "R\$ 0,00", theme, isDark),
     ];
 

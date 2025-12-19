@@ -28,6 +28,9 @@ class _HomePageState extends State<HomePage> {
   late User _user;
   bool _isLoading = true;
   late PendingSteps _userPendingSteps;
+  late List<Widget> _pages = [];
+  late List<_StepData> _steps = [];
+  int _currentStepIndex = 1;
 
   @override
   void initState() {
@@ -35,7 +38,120 @@ class _HomePageState extends State<HomePage> {
     _loadUser();
   }
 
+  void _advanceToNextStep() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final SettingsRepository _settingsRepository = SettingsRepository();
+
+    if (_currentStepIndex == 1) {
+      context.push('/account/0').then((value) {
+        _loadUser();
+      });
+    } else if (_currentStepIndex == 2) {
+      var result = await _settingsRepository.postUserBusinessData();
+      if (result) {
+        _currentStepIndex++;
+      }
+    } else if (_currentStepIndex == 3) {
+      context.push('/create-product').then((value) {
+        _loadUser();
+      });
+    } else if (_currentStepIndex < _steps.length - 1) {
+      _currentStepIndex++;
+    }
+
+    _loadUser();
+  }
+
+  Future<bool> _configureSteps(SettingsRepository _settingsRepository) async{
+    var _pendingSteps = await _settingsRepository.getUserPendingSteps();
+
+    var _identityStatus = _pendingSteps.hasIdentityValidated
+        ? _StepState.completed
+        : _StepState.current;
+
+    if (_identityStatus == _StepState.current) {
+      _currentStepIndex = 1;
+    }
+
+    var _businessStatus = _pendingSteps.hasBusinessData
+        ? _StepState.completed
+        : _pendingSteps.hasIdentityValidated
+        ? _StepState.current
+        : _StepState.locked;
+
+    if (_businessStatus == _StepState.current) {
+      _currentStepIndex = 2;
+    }
+
+    var _productStatus = _pendingSteps.hasProducts
+        ? _StepState.completed
+        : _pendingSteps.hasBusinessData
+        ? _StepState.current
+        : _StepState.locked;
+
+    if (_productStatus == _StepState.current) {
+      _currentStepIndex = 3;
+    }
+
+    var _salesStatus = _pendingSteps.hasSales
+        ? _StepState.completed
+        : _pendingSteps.hasProducts
+        ? _StepState.current
+        : _StepState.locked;
+
+    if (_salesStatus == _StepState.current) {
+      _currentStepIndex = 4;
+    }
+
+    if (_salesStatus == _StepState.completed) {
+      _currentStepIndex = 5;
+    }
+
+    _steps = [
+      _StepData(
+        Icons.check,
+        "Dados Pessoais",
+        "Suas informações",
+        _StepState.completed,
+      ),
+      _StepData(
+        Icons.shield_outlined,
+        "Identidade",
+        "Validação",
+        _identityStatus,
+      ),
+      _StepData(
+        Icons.business_center_outlined,
+        "Empresa",
+        "Dados da Empresa",
+        _businessStatus,
+      ),
+      _StepData(
+        Icons.inventory_2_outlined,
+        "Produto",
+        "Primeiro Produto",
+        _productStatus,
+      ),
+      _StepData(
+        Icons.sell_outlined,
+        "Primeira Venda",
+        "Vender e Sacar",
+        _salesStatus,
+      ),
+    ];
+
+    return true;
+  }
+
   void _loadUser() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
     final token = await DatabaseHelper.instance.getAccessToken();
 
     if (token == null) {
@@ -45,7 +161,7 @@ class _HomePageState extends State<HomePage> {
 
     final decodedToken = JwtDecoder.decode(token);
 
-    var extra = User(
+    _user = User(
       id: decodedToken['sub'] != null ? decodedToken['sub'].toString() : '',
       name: decodedToken['name'] ?? '',
       email: decodedToken['email'] ?? '',
@@ -55,30 +171,38 @@ class _HomePageState extends State<HomePage> {
       userOnboardingId: decodedToken['onboardingId'] ?? '',
     );
 
-    // var extra = User(
-    //   id: '',
-    //   name: 'Eduardo Candido',
-    //   email: '',
-    //   password: '',
-    //   cpf: '',
-    //   phone: '',
-    //   userOnboardingId: '',
-    // );
-    final SettingsRepository _settingsRepository = SettingsRepository(); // Instancia o repositório
+    final SettingsRepository _settingsRepository = SettingsRepository();
     _userPendingSteps = await _settingsRepository.getUserPendingSteps();
-    _userPendingSteps.hasWhatsappNotification = await _settingsRepository.getWhatsappUserStatus();
+    _userPendingSteps.hasWhatsappNotification = await _settingsRepository
+        .getWhatsappUserStatus();
 
-    if (mounted) {
+    var resultSteps = await _configureSteps(_settingsRepository);
+
+    if (mounted && resultSteps) {
+      _pages = [
+        _userPendingSteps.hasSales
+          ? OverviewDashboardPage()
+          : DashboardContent(
+          showWhatsappCard: !_userPendingSteps.hasWhatsappNotification,
+          userName: _user.name,
+          onBackButtonPressed: _loadUser,
+          currentStepIndex: _currentStepIndex,
+          advanceToNextStep: _advanceToNextStep,
+          steps: _steps,
+        ),
+        const ProductListPage(),
+        ProfileTab(userName: _user.name, email: _user.email),
+        const FinancialStatementPage(),
+        const MyAccountPage(tabIndex: 0),
+      ];
+
       setState(() {
-        _user = extra;
-        _isLoading = false; // Carregamento concluído
+        _isLoading = false;
       });
     }
   }
 
   void _onItemTapped(int index) {
-    // if (index == 2) return;
-
     setState(() {
       _selectedIndex = index;
     });
@@ -94,15 +218,6 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-    final List<Widget> pages = [
-      _userPendingSteps.hasSales
-          ?  OverviewDashboardPage()
-          :  DashboardContent(showWhatsappCard: !_userPendingSteps.hasWhatsappNotification, userName: _user.name),
-      const ProductListPage(),
-      ProfileTab(userName: _user.name, email: _user.email),
-      const FinancialStatementPage(),
-      const MyAccountPage(),
-    ];
 
     final theme = Theme.of(context);
 
@@ -112,7 +227,6 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sidebar (Apenas Desktop)
             if (!isMobile)
               _SidebarMenu(
                 selectedIndex: _selectedIndex,
@@ -120,7 +234,7 @@ class _HomePageState extends State<HomePage> {
               ),
 
             // Área de Conteúdo
-            Expanded(child: pages[_selectedIndex]),
+            Expanded(child: _pages[_selectedIndex]),
           ],
         ),
       ),
@@ -175,9 +289,22 @@ class _HomePageState extends State<HomePage> {
 }
 
 class DashboardContent extends StatefulWidget {
+  final VoidCallback onBackButtonPressed;
+  final VoidCallback advanceToNextStep;
+  final List<_StepData> steps;
+  final int currentStepIndex;
   final bool showWhatsappCard;
   final String userName;
-  const DashboardContent({super.key, required this.showWhatsappCard, required this.userName});
+
+  const DashboardContent({
+    super.key,
+    required this.showWhatsappCard,
+    required this.userName,
+    required this.onBackButtonPressed,
+    required this.advanceToNextStep,
+    required this.currentStepIndex,
+    required this.steps
+  });
 
   @override
   State<DashboardContent> createState() => _DashboardContentState();
@@ -201,14 +328,27 @@ class _DashboardContentState extends State<DashboardContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Olá, ${widget.userName}", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              "Olá, ${widget.userName}",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
-            Text("Estamos muito felizes de te receber aqui. Te desejamos boas vendas!", style: TextStyle(color: theme.colorScheme.onBackground.withOpacity(0.6), fontSize: 14)),
+            Text(
+              "Estamos muito felizes de te receber aqui. Te desejamos boas vendas!",
+              style: TextStyle(
+                color: theme.colorScheme.onBackground.withOpacity(0.6),
+                fontSize: 14,
+              ),
+            ),
             const SizedBox(height: 32),
-            if(widget.showWhatsappCard)
-              const _WhatsAppNotificationCard(),
+            if (widget.showWhatsappCard) const _WhatsAppNotificationCard(),
             const SizedBox(height: 24),
-            OnboardingStepsCard(),
+            OnboardingStepsCard(
+              onBackButtonPressed: widget.onBackButtonPressed,
+              steps: widget.steps,
+              advanceToNextStep: widget.advanceToNextStep,
+              currentStepIndex: widget.currentStepIndex,
+            ),
             if (!isDesktop) ...[
               const SizedBox(height: 24),
               const _SalesCard(isMobile: true),
@@ -341,146 +481,56 @@ class ProfileTab extends StatelessWidget {
 }
 
 class OnboardingStepsCard extends StatefulWidget {
-  const OnboardingStepsCard({super.key});
+  final VoidCallback onBackButtonPressed;
+  final VoidCallback advanceToNextStep;
+  final List<_StepData> steps;
+  final int currentStepIndex;
+
+  const OnboardingStepsCard({super.key, required this.onBackButtonPressed, required this.steps, required this.currentStepIndex, required this.advanceToNextStep});
 
   @override
   State<OnboardingStepsCard> createState() => _OnboardingStepsCardState();
 }
 
 class _OnboardingStepsCardState extends State<OnboardingStepsCard> {
-  int _currentStepIndex = 1;
-  late final List<_StepData> _steps;
-  late bool _isLoading = true;
+  late List<_StepData> _steps;
+  late int _currentStepIndex;
 
   @override
   void initState() {
     super.initState();
-    loadStepsStatus();
+
+    _currentStepIndex = widget.currentStepIndex;
+    _steps = widget.steps;
   }
 
-  void loadStepsStatus() async {
-    final SettingsRepository _settingsRepository = SettingsRepository(); // Instancia o repositório
-    var _pendingSteps = await _settingsRepository.getUserPendingSteps();
+  @override
+  void didUpdateWidget(covariant OnboardingStepsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
-    var _identityStatus = _pendingSteps.hasIdentityValidated
-        ? _StepState.completed
-        : _StepState.current;
-
-    if(_identityStatus == _StepState.current){
-      _currentStepIndex = 1;
-    }
-
-    var _businessStatus = _pendingSteps.hasBusinessData
-        ? _StepState.completed
-        : _pendingSteps.hasIdentityValidated ? _StepState.current : _StepState.locked;
-
-    if(_businessStatus == _StepState.current){
-      _currentStepIndex = 2;
-    }
-
-    var _productStatus = _pendingSteps.hasProducts
-        ? _StepState.completed
-        : _pendingSteps.hasBusinessData ? _StepState.current : _StepState.locked;
-
-    if(_productStatus == _StepState.current){
-      _currentStepIndex = 3;
-    }
-
-    var _salesStatus = _pendingSteps.hasSales
-        ? _StepState.completed
-        : _pendingSteps.hasProducts ? _StepState.current : _StepState.locked;
-
-    if(_salesStatus == _StepState.current){
-      _currentStepIndex = 4;
-    }
-
-    if(_salesStatus == _StepState.completed){
-      _currentStepIndex = 5;
-    }
-
-    _steps = [
-      _StepData(
-        Icons.check,
-        "Dados Pessoais",
-        "Suas informações",
-        _StepState.completed,
-      ),
-      _StepData(
-        Icons.shield_outlined,
-        "Identidade",
-        "Validação",
-        _identityStatus,
-      ),
-      _StepData(
-        Icons.business_center_outlined,
-        "Empresa",
-        "Dados da Empresa",
-        _businessStatus,
-      ),
-      _StepData(
-        Icons.inventory_2_outlined,
-        "Produto",
-        "Primeiro Produto",
-        _productStatus,
-      ),
-      _StepData(
-        Icons.sell_outlined,
-        "Primeira Venda",
-        "Vender e Sacar",
-        _salesStatus,
-      ),
-    ];
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  void _advanceToNextStep() async{
-    if(_currentStepIndex == 1){
-      context.push('/account');
-    }
-    else if(_currentStepIndex == 2){
-      final SettingsRepository _settingsRepository = SettingsRepository();
-      var result = await _settingsRepository.postUserBusinessData();
-      if(result){
-        setState(() {
-          _currentStepIndex++;
-        });
-      }
-    }
-    else if(_currentStepIndex == 3){
-      context.push('/create-product');
-    }
-    else if (_currentStepIndex < _steps.length - 1) {
+    if (widget.currentStepIndex != oldWidget.currentStepIndex) {
       setState(() {
-        _currentStepIndex++;
+        _currentStepIndex = widget.currentStepIndex;
+      });
+    }
+    // Atualiza a lista de steps também, se ela mudar
+    if (widget.steps != oldWidget.steps) {
+      setState(() {
+        _steps = widget.steps;
       });
     }
   }
 
   _StepState _getStepState(int index) {
-    if (index < _currentStepIndex) {
-      return _StepState.completed;
-    } else if (index == _currentStepIndex) {
-      return _StepState.current;
-    } else {
-      return _StepState.locked;
-    }
+    if (index < _currentStepIndex) return _StepState.completed;
+    if (index == _currentStepIndex) return _StepState.current;
+    return _StepState.locked;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: AppPalette.orange500),
-        ),
-      );
-    }
-
     final theme = Theme.of(context);
-    final progress = (_currentStepIndex) / (_steps.length);
+    final progress = (widget.currentStepIndex) / (widget.steps.length);
     final progressPercentage = (progress * 100).clamp(0, 100).toInt();
 
     return Container(
@@ -526,7 +576,7 @@ class _OnboardingStepsCardState extends State<OnboardingStepsCard> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Text(
-              "$_currentStepIndex de ${_steps.length} etapas concluídas",
+              "${widget.currentStepIndex} de ${widget.steps.length} etapas concluídas",
               // Texto dinâmico
               style: TextStyle(
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
@@ -553,11 +603,11 @@ class _OnboardingStepsCardState extends State<OnboardingStepsCard> {
             width: double.infinity,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _steps.length,
+              itemCount: widget.steps.length,
               separatorBuilder: (context, index) =>
-                  _buildConnector(index < _currentStepIndex),
+                  _buildConnector(index < widget.currentStepIndex),
               itemBuilder: (context, index) {
-                final step = _steps[index];
+                final step = widget.steps[index];
                 return _buildStepCard(
                   context,
                   step.icon,
@@ -565,7 +615,7 @@ class _OnboardingStepsCardState extends State<OnboardingStepsCard> {
                   step.subtitle,
                   _getStepState(index),
                   // Usa a função para obter o estado dinâmico
-                  index == _currentStepIndex,
+                  index == widget.currentStepIndex,
                 );
               },
             ),
@@ -578,13 +628,13 @@ class _OnboardingStepsCardState extends State<OnboardingStepsCard> {
   }
 
   Widget _buildCurrentStepActionCard() {
-    switch (_currentStepIndex) {
+    switch (widget.currentStepIndex) {
       case 1:
-        return _IdentityValidationCard(onValidate: _advanceToNextStep);
+        return _IdentityValidationCard(onValidate: widget.advanceToNextStep);
       case 2:
-        return _CompanyDataCard(onContinue: _advanceToNextStep);
+        return _CompanyDataCard(onContinue: widget.advanceToNextStep);
       case 3:
-        return _CreateProductCard(onCreate: _advanceToNextStep);
+        return _CreateProductCard(onCreate: widget.advanceToNextStep);
       case 4:
         return _FirstSaleCard(
           onSell: () {
@@ -715,6 +765,7 @@ class _IdentityValidationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 900;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -725,35 +776,68 @@ class _IdentityValidationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const CircleAvatar(
-                backgroundColor: AppPalette.orange500,
-                foregroundColor: Colors.white,
-                radius: 12,
-                child: Text("2", style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "Validação de Identidade",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: theme.colorScheme.onSurface,
+          if(!isMobile)...[
+            Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: AppPalette.orange500,
+                  foregroundColor: Colors.white,
+                  radius: 12,
+                  child: Text("2", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              ),
-              const Spacer(),
-              const Chip(
-                label: Text("Em andamento"),
-                backgroundColor: Color(0xFFFFF3E0),
-                labelStyle: TextStyle(
-                  color: AppPalette.orange500,
-                  fontSize: 12,
+                const SizedBox(width: 8),
+                Text(
+                  "Validação de Identidade",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
-                padding: EdgeInsets.zero,
+                const Spacer(),
+                const Chip(
+                  label: Text("Em andamento"),
+                  backgroundColor: Color(0xFFFFF3E0),
+                  labelStyle: TextStyle(
+                    color: AppPalette.orange500,
+                    fontSize: 12,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ]
+          else...[
+            Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: AppPalette.orange500,
+                  foregroundColor: Colors.white,
+                  radius: 12,
+                  child: Text("2", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Validação de Identidade",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
+            const Chip(
+              label: Text("Em andamento"),
+              backgroundColor: Color(0xFFFFF3E0),
+              labelStyle: TextStyle(
+                color: AppPalette.orange500,
+                fontSize: 12,
               ),
-            ],
-          ),
+              padding: EdgeInsets.zero,
+            ),
+          ],
           const SizedBox(height: 16),
           Text(
             "Para sua segurança, precisamos validar sua identidade. Isso leva menos de 5 minutos.",
@@ -769,8 +853,10 @@ class _IdentityValidationCard extends StatelessWidget {
               backgroundColor: AppPalette.orange500,
               foregroundColor: Colors.white,
             ),
-            child: const Text("Validar Identidade",
-              style: TextStyle(color: AppPalette.surfaceText),),
+            child: const Text(
+              "Validar Identidade",
+              style: TextStyle(color: AppPalette.surfaceText),
+            ),
           ),
         ],
       ),
@@ -1065,7 +1151,10 @@ class _CreditCardRefusals extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              child: const Text("Criar produto +"),
+              child: const Text(
+                "Criar produto +",
+                style: TextStyle(color: AppPalette.surfaceText),
+              ),
             ),
           ),
         ],
@@ -1323,7 +1412,8 @@ class _WhatsAppDialog extends StatelessWidget {
                 onPressed: () async {
                   final SettingsRepository _settingsRepository =
                       SettingsRepository();
-                  final whatsappLink = await _settingsRepository.getWhatsappLink();
+                  final whatsappLink = await _settingsRepository
+                      .getWhatsappLink();
                   final whatsappUrl = Uri.parse(whatsappLink);
                   try {
                     await launchUrl(
@@ -1348,7 +1438,9 @@ class _WhatsAppDialog extends StatelessWidget {
                 ),
                 child: const Text(
                   "Ativar",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -1457,7 +1549,10 @@ class _CompanyDataCard extends StatelessWidget {
                     backgroundColor: AppPalette.orange500,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text("Preencher dados"),
+                  child: const Text(
+                    "Preencher dados",
+                    style: TextStyle(color: AppPalette.surfaceText),
+                  ),
                 ),
               ),
             ],
@@ -1571,7 +1666,10 @@ class _CreateProductCard extends StatelessWidget {
                 backgroundColor: AppPalette.orange500,
                 foregroundColor: Colors.white,
               ),
-              child: const Text("Criar Produto"),
+              child: const Text(
+                "Criar Produto",
+                style: TextStyle(color: AppPalette.surfaceText),
+              ),
             ),
           ),
         ],

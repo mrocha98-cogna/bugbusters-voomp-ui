@@ -9,6 +9,7 @@ class ApiEndpoints {
   static const String userPendingSteps = '/api/v1/users/pending-steps';
   static const String patchUserIdentityValidation = '/api/v1/users/identity-validation';
   static const String postUserBusinessData = '/api/v1/users/business-data';
+  static const String postUserBankingData = '/api/v1/users/banking-data';
   static const String validationEmailToken = '/api/v1/email/send';
   static const String login = '/api/v1/auth/login';
   static const String signUp = '/api/v1/auth/sign-up';

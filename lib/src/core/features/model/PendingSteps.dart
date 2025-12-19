@@ -8,6 +8,7 @@ class PendingSteps {
   int completedSteps;
   double completionPercentage;
   bool hasWhatsappNotification = false;
+  bool hasBankingData;
 
   PendingSteps({
     required this.hasPersonalData,
@@ -19,6 +20,7 @@ class PendingSteps {
     required this.completedSteps,
     required this.completionPercentage,
     required this.hasWhatsappNotification,
+    required this.hasBankingData
   });
 
   factory PendingSteps.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class PendingSteps {
       completedSteps: int.tryParse(json['completedSteps'].toString()) ?? 0,
       completionPercentage: double.tryParse(json['completionPercentage'].toString()) ?? 0,
       hasWhatsappNotification: false,
+      hasBankingData: json['hasBankingData'],
     );
   }
 }

@@ -115,10 +115,9 @@ class SettingsRepository {
     }
   }
 
-  Future<bool> postUserBusinessData() async {
+  Future<bool> postUserBankingData() async {
     var token = await DatabaseHelper.instance.getAccessToken();
-    final url = Uri.parse('${ApiEndpoints.apiVoompBaseUrl}${ApiEndpoints.postUserBusinessData}');
-
+    final url = Uri.parse('${ApiEndpoints.apiVoompBaseUrl}${ApiEndpoints.postUserBankingData}');
 
     try {
       final response = await http.post(
@@ -127,6 +126,26 @@ class SettingsRepository {
             'Content-Type': 'application/json',
             if (token != null) 'Authorization': 'Bearer $token',
           },
+      );
+
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      print('Erro ao atualizar dados bancarios: $e');
+      throw Exception('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
+    }
+  }
+
+  Future<bool> postUserBusinessData() async {
+    var token = await DatabaseHelper.instance.getAccessToken();
+    final url = Uri.parse('${ApiEndpoints.apiVoompBaseUrl}${ApiEndpoints.postUserBusinessData}');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
       );
 
       return response.statusCode >= 200 && response.statusCode < 300;
