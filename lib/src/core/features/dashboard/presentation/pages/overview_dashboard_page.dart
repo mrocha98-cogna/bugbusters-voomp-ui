@@ -36,7 +36,6 @@ class _OverviewDashboardPageState extends State<OverviewDashboardPage> {
   void initState() {
     super.initState();
     _loadUser();
-    _fetchData();
   }
 
   void _loadUser() async {
@@ -64,6 +63,8 @@ class _OverviewDashboardPageState extends State<OverviewDashboardPage> {
     _userPendingSteps.hasWhatsappNotification = await _settingsRepository.getWhatsappUserStatus();
 
     _user = extra;
+
+    _fetchData();
   }
 
   void _fetchData() async{
@@ -147,13 +148,13 @@ class _OverviewDashboardPageState extends State<OverviewDashboardPage> {
                 children: [
                   Expanded(flex: 3, child: _SalesFunnelCard(salesStatistics: _salesStatistics)),
                   SizedBox(width: 24),
-                  Expanded(flex: 2, child: _BalanceOverviewCard(userPendingSteps: _userPendingSteps,)),
+                  Expanded(flex: 2, child: _BalanceOverviewCard(userPendingSteps: _userPendingSteps, loadUser: _loadUser)),
                 ],
               )
             else ...[
               _SalesFunnelCard(salesStatistics: _salesStatistics),
               const SizedBox(height: 24),
-              _BalanceOverviewCard(userPendingSteps: _userPendingSteps),
+              _BalanceOverviewCard(userPendingSteps: _userPendingSteps, loadUser: _loadUser),
             ],
             const SizedBox(height: 24),
             if (isDesktop)
@@ -504,11 +505,11 @@ class _SalesFunnelCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildFunnelBar("$totalVisits", Colors.blue[100]!, Colors.blue, (visitsToLeads / 100), theme),
+                _buildFunnelBar("$totalVisits \nTotal Visitas", Colors.blue[100]!, Colors.blue, (visitsToLeads / 100), theme),
                 const SizedBox(width: 4),
-                _buildFunnelBar("$totalLeads", const Color(0xFF1565C0), const Color(0xFF0D47A1), (leadsToSales / 100), theme), // Azul escuro
+                _buildFunnelBar("$totalLeads \nTotal Leads", const Color(0xFF1565C0), const Color(0xFF0D47A1), (leadsToSales / 100), theme), // Azul escuro
                 const SizedBox(width: 4),
-                _buildFunnelBar("$totalSales", Colors.greenAccent[100]!, Colors.green, (overallConversion / 100), theme),
+                _buildFunnelBar("$totalSales \nTotal Vendas", Colors.greenAccent[100]!, Colors.green, (overallConversion / 100), theme),
                 const SizedBox(width: 16),
 
                 // Legenda LateralR
@@ -582,8 +583,9 @@ class _SalesFunnelCard extends StatelessWidget {
 }
 
 class _BalanceOverviewCard extends StatelessWidget {
+  final VoidCallback loadUser;
   final PendingSteps userPendingSteps;
-  const _BalanceOverviewCard({required this.userPendingSteps});
+  const _BalanceOverviewCard({required this.userPendingSteps, required this.loadUser});
 
   @override
   Widget build(BuildContext context) {
@@ -653,7 +655,8 @@ class _BalanceOverviewCard extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {
                 if(userPendingSteps.hasBankingData) {
-                  context.push('/financial-statement');
+                  context.push('/financial-statement')
+                      .then((value) => loadUser);
                 } else {
                   context.push('/account/3');
                 }
